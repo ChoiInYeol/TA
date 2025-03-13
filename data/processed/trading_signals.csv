@@ -1,4 +1,4 @@
-Date,SMA_Signal,EMA_Signal,TSI_Signal,MACD_Signal,PSAR_Signal,ADX_Signal,Aroon_Signal,ADL_Signal,ADR_Signal,Ichimoku_Signal,Keltner_Signal,RSI_Signal,BB_Signal,CCI_Signal,Stoch_Signal,Williams_Signal,CMO_Signal,DeMarker_Signal,Donchian_Signal,Pivot_Signal,PSY_Signal
+Date,SMA,EMA,TSI,MACD,PSAR,ADX,Aroon,ADL,ADR,Ichimoku,Keltner,RSI,BB,CCI,Stoch,Williams,CMO,DeMarker,Donchian,Pivot,PSY
 2000-01-03,,,,,,,,,,,,,,,,,,,,,
 2000-01-04,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
 2000-01-05,0.0,-1.0,-1.0,-1.0,-1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

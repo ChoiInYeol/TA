@@ -1,7 +1,6 @@
 import pandas as pd
 from technical_indicator import CORE16MomentumIndicator, CORE16ContrarianIndicator
 from signal_generator import SignalGenerator
-from visualizer import TAVisualizer
 
 def main():
     # 데이터 로드
@@ -31,15 +30,6 @@ def main():
     all_signals = pd.concat([momentum_signals, contrarian_signals], axis=1).round(4)
     
     all_signals.to_csv('data/processed/trading_signals.csv')
-    
-    # 시각화
-    visualizer = TAVisualizer(combined_df, all_signals)
-    visualizer.create_base_chart()
-    visualizer.add_momentum_indicators()
-    visualizer.add_contrarian_indicators()
-    visualizer.add_signals()
-    visualizer.save('output/figures/technical_analysis.html')
-    visualizer.show()
     
 
 if __name__ == "__main__":

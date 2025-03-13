@@ -496,17 +496,17 @@ class SignalGenerator:
         signals = pd.DataFrame(index=self.data.index)
         
         # 각 모멘텀 지표별 신호 생성
-        signals['SMA_Signal'] = self.generate_sma_signals()
-        signals['EMA_Signal'] = self.generate_ema_signals()
-        signals['TSI_Signal'] = self.generate_tsi_signals()
-        signals['MACD_Signal'] = self.generate_macd_signals()
-        signals['PSAR_Signal'] = self.generate_psar_signals()
-        signals['ADX_Signal'] = self.generate_adx_signals()
-        signals['Aroon_Signal'] = self.generate_aroon_signals()
-        signals['ADL_Signal'] = self.generate_adl_signals()
-        signals['ADR_Signal'] = self.generate_adr_signals()
-        signals['Ichimoku_Signal'] = self.generate_ichimoku_signals()
-        signals['Keltner_Signal'] = self.generate_keltner_signals()
+        signals['SMA'] = self.generate_sma_signals()
+        signals['EMA'] = self.generate_ema_signals()
+        signals['TSI'] = self.generate_tsi_signals()
+        signals['MACD'] = self.generate_macd_signals()
+        signals['PSAR'] = self.generate_psar_signals()
+        signals['ADX'] = self.generate_adx_signals()
+        signals['Aroon'] = self.generate_aroon_signals()
+        signals['ADL'] = self.generate_adl_signals()
+        signals['ADR'] = self.generate_adr_signals()
+        signals['Ichimoku'] = self.generate_ichimoku_signals()
+        signals['Keltner'] = self.generate_keltner_signals()
         
         return signals
     
@@ -515,16 +515,17 @@ class SignalGenerator:
         signals = pd.DataFrame(index=self.data.index)
         
         # 각 반추세 지표별 신호 생성
-        signals['RSI_Signal'] = self.generate_rsi_signals()
-        signals['BB_Signal'] = self.generate_bb_signals()
-        signals['CCI_Signal'] = self.generate_cci_signals()
-        signals['Stoch_Signal'] = self.generate_stochastic_signals()
-        signals['Williams_Signal'] = self.generate_williams_r_signals()
-        signals['CMO_Signal'] = self.generate_cmo_signals()
-        signals['DeMarker_Signal'] = self.generate_demark_signals()
-        signals['Donchian_Signal'] = self.generate_donchian_signals()
-        signals['Pivot_Signal'] = self.generate_pivot_signals()
-        signals['PSY_Signal'] = self.generate_psy_signals()
+        signals['RSI'] = self.generate_rsi_signals()
+        signals['BB'] = self.generate_bb_signals()
+        signals['CCI'] = self.generate_cci_signals()
+        signals['Stoch'] = self.generate_stochastic_signals()
+        signals['Williams'] = self.generate_williams_r_signals()
+        signals['CMO'] = self.generate_cmo_signals()
+        signals['DeMarker'] = self.generate_demark_signals()
+        signals['Donchian'] = self.generate_donchian_signals()
+        signals['Pivot'] = self.generate_pivot_signals()
+        signals['PSY'] = self.generate_psy_signals()
+        # signals['NPSY'] = self.generate_npsy_signals()
         
         return signals
     
