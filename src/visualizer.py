@@ -12,7 +12,7 @@ import pandas as pd
 from matplotlib.colors import ListedColormap
 from mplfinance.original_flavor import candlestick_ohlc
 
-from .settings import HEATMAP_FILE, SIGNALS_FILE, SPY_DATA_FILE
+from src.settings import HEATMAP_FILE, SIGNALS_FILE, SPY_DATA_FILE
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .settings import INDICATORS_FILE, SPY_DATA_FILE, TECHNICAL_INDICATORS
+from src.settings import INDICATORS_FILE, SPY_DATA_FILE, TECHNICAL_INDICATORS
 
 logger = logging.getLogger(__name__)
 

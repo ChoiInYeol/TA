@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
-from .settings import SPY_DATA_FILE
+from src.settings import SPY_DATA_FILE
 
 # 로깅 설정
 logging.basicConfig(

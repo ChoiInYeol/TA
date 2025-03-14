@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .settings import (
+from src.settings import (
     INDICATORS_FILE,
     SIGNALS_FILE,
     TECHNICAL_INDICATORS,
