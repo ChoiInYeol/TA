@@ -33,12 +33,19 @@ jobs:
     - name: API 문서 생성
       run: |
         mkdir -p docs/api
-        for file in src/*.py; do
-          filename=$(basename "$file" .py)
-          echo "# $filename" > "docs/api/${filename}.md"
-          echo "\`\`\`python" >> "docs/api/${filename}.md"
-          cat "$file" >> "docs/api/${filename}.md"
-          echo "\`\`\`" >> "docs/api/${filename}.md"
+        for dir in src/*/; do
+          if [ -d "$dir" ]; then
+            dir_name=$(basename "$dir")
+            for file in "$dir"*.py; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file" .py)
+                echo "# $filename" > "docs/api/${filename}.md"
+                echo "\`\`\`python" >> "docs/api/${filename}.md"
+                cat "$file" >> "docs/api/${filename}.md"
+                echo "\`\`\`" >> "docs/api/${filename}.md"
+              fi
+            done
+          fi
         done
         
     - name: MkDocs 사이트 생성

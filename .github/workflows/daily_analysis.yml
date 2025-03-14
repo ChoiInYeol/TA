@@ -2,7 +2,7 @@ name: Daily Analysis
 
 on:
   schedule:
-    - cron: '30 21 * * *'  # 매일 UTC 00:00에 실행
+    - cron: '30 21 * * *'  # 매일 UTC 21:30에 실행 (한국 시간 06:30)
 
 jobs:
   analyze:
@@ -14,7 +14,8 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.8'
+        python-version: '3.11'
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
@@ -22,11 +23,12 @@ jobs:
         pip install -r requirements.txt
     
     - name: Run analysis
-      run: python scripts/run_analysis.py
+      run: |
+        python main.py
     
     - name: Commit and push if changed
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add data/processed/
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Update analysis results" && git push)
+        git add data/ output/
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily analysis results" && git push)

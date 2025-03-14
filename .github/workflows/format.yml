@@ -3,10 +3,13 @@ name: 코드 포맷팅
 on:
   push:
     paths:
-      - '**.py'
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/format.yml'
   pull_request:
     paths:
-      - '**.py'
+      - 'src/**'
+      - 'tests/**'
 
 jobs:
   format:
@@ -26,7 +29,7 @@ jobs:
           pip install black isort
           
       - name: Black 포맷 검사
-        run: black --check src/
+        run: black --check src/ tests/
         
       - name: isort 검사
-        run: isort --check-only src/ 
+        run: isort --check-only src/ tests/ 

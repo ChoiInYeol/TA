@@ -44,6 +44,7 @@ jobs:
         files: |
           LICENSE
           README.md
+          requirements.txt
         draft: false
         prerelease: false
       env:
@@ -51,5 +52,10 @@ jobs:
         
     - name: 문서 배포
       run: |
-        # 여기에 문서 배포 스크립트 추가 (예: GitHub Pages)
-        echo "문서 배포 완료" 
+        mkdocs build
+        touch site/.nojekyll
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
+        git add site/
+        git commit -m "Update documentation for release ${{ github.ref_name }}"
+        git push origin gh-pages 
