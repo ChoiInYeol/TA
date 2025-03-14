@@ -1,0 +1,87 @@
+repository:
+  # 저장소 설정
+  name: technical-indicator-lamp
+  description: S&P 500 지수의 기술적 분석을 자동화하는 도구
+  homepage: https://ChoiInYeol.github.io/technical-indicator-lamp
+  topics: python, trading, technical-analysis, automation
+  private: false
+  has_issues: true
+  has_projects: true
+  has_wiki: false
+  has_downloads: true
+  default_branch: main
+  allow_squash_merge: true
+  allow_merge_commit: false
+  allow_rebase_merge: true
+  delete_branch_on_merge: true
+  enable_automated_security_fixes: true
+  enable_vulnerability_alerts: true
+
+# 브랜치 보호 규칙
+branches:
+  - name: main
+    protection:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: true
+      required_status_checks:
+        strict: true
+        contexts:
+          - "보안 취약점 검사"
+          - "의존성 리뷰"
+          - "테스트"
+          - "문서"
+      enforce_admins: true
+      required_linear_history: true
+      restrictions: null
+
+# 라벨 설정
+labels:
+  - name: "버그"
+    color: "d73a4a"
+    description: "버그 리포트"
+  - name: "기능 요청"
+    color: "0075ca"
+    description: "새로운 기능 요청"
+  - name: "문서"
+    color: "0075ca"
+    description: "문서 관련 이슈"
+  - name: "보안"
+    color: "d73a4a"
+    description: "보안 관련 이슈"
+  - name: "성능"
+    color: "0e8a16"
+    description: "성능 개선"
+
+# 이슈 템플릿 설정
+issue_templates:
+  - name: 버그 리포트
+    about: 버그를 보고하기 위한 템플릿
+    title: "[버그] "
+    labels: ["버그"]
+    assignees: []
+    body:
+      - type: markdown
+        attributes:
+          value: "## 버그 설명"
+      - type: textarea
+        attributes:
+          label: 현재 상황
+          description: 발생한 버그에 대해 설명해주세요.
+          required: true
+      - type: textarea
+        attributes:
+          label: 재현 방법
+          description: 버그를 재현하는 방법을 단계별로 설명해주세요.
+          required: true
+      - type: textarea
+        attributes:
+          label: 예상 동작
+          description: 예상했던 정상적인 동작을 설명해주세요.
+          required: true
+      - type: textarea
+        attributes:
+          label: 환경 정보
+          description: 운영체제, Python 버전 등 관련 정보를 제공해주세요.
+          required: true 

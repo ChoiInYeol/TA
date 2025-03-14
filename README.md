@@ -65,7 +65,7 @@ Technical Indicator Lamp는 다양한 기술적 지표를 활용하여 트레이
 
 1. 저장소 클론:
 ```bash
-git clone https://github.com/yourusername/technical-indicator-lamp.git
+git clone https://github.com/ChoiInYeol/technical-indicator-lamp.git
 cd technical-indicator-lamp
 ```
 

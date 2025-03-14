@@ -1,2 +1,0 @@
-Signals,Signal_Count,Successful_Predictions,Predicted_Declines,False_Alarms,Missed_Declines,Precision,Recall,F1_Score,Total_Signals
-"['EMA_Signal', 'Donchian_Signal', 'Ichimoku_Signal', 'PSAR_Signal', 'TSI_Signal', 'ADL_Signal']",6,188,48,1887,3,0.09060240963855422,0.9411764705882353,0.16529288932849764,2075

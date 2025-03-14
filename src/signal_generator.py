@@ -1,604 +1,569 @@
-import pandas as pd
+"""
+매매 시그널 생성 모듈
+
+이 모듈은 기술적 지표 데이터를 기반으로 매매 시그널을 생성합니다.
+생성되는 시그널은 다음과 같은 의미를 가집니다:
+- 1: 매수 시그널
+- -1: 매도 시그널
+- 0: 중립 시그널
+"""
+
+import logging
+from pathlib import Path
+
 import numpy as np
-from typing import Dict, List, Tuple
+import pandas as pd
+
+from config import INDICATORS_FILE, SIGNALS_FILE, TECHNICAL_INDICATORS, SIGNAL_THRESHOLDS
+
+logger = logging.getLogger(__name__)
+
 
 class SignalGenerator:
-    """기술적 지표 기반 매매 신호 생성기"""
-    
-    def __init__(self, data: pd.DataFrame):
+    """매매 시그널 생성 클래스"""
+
+    def __init__(
+        self,
+        indicators_file: Path = INDICATORS_FILE,
+        output_file: Path = SIGNALS_FILE,
+    ):
         """
         Args:
-            data (pd.DataFrame): 기술적 지표가 포함된 데이터프레임
+            indicators_file (Path): 기술적 지표 데이터 파일 경로
+            output_file (Path): 출력 파일 경로
         """
-        self.data = data
-        
-    def generate_sma_signals(self, window_size: int = 20) -> pd.Series:
-        """단순이동평균(SMA) 신호 생성
-        
-        매수 신호: 종가가 SMA를 상향 돌파
-        매도 신호: 종가가 SMA를 하향 돌파
-        
-        Args:
-            window_size (int): 이동평균 기간
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        sma_col = f'SMA({window_size})'
-        signals = pd.Series(0, index=self.data.index)
-        
-        # 상향/하향 돌파 계산
-        signals[self.data['Close'] > self.data[sma_col]] = 1
-        signals[self.data['Close'] < self.data[sma_col]] = -1
-        
-        # 당일 신호를 다음 거래일에 실행하도록 시프트
-        return signals.shift(1)
+        self.indicators_file = indicators_file
+        self.output_file = output_file
+        self.indicators_df = None
+        self.signals_df = None
+        self._load_data()
 
-    def generate_ema_signals(self, window_size: int = 20) -> pd.Series:
-        """지수이동평균(EMA) 신호 생성
-        
-        매수 신호: 종가가 EMA를 상향 돌파
-        매도 신호: 종가가 EMA를 하향 돌파
-        
-        Args:
-            window_size (int): 이동평균 기간
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        ema_col = f'EMA({window_size})'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data['Close'] > self.data[ema_col]] = 1
-        signals[self.data['Close'] < self.data[ema_col]] = -1
-        
-        return signals.shift(1)
+    def _load_data(self) -> None:
+        """데이터를 로드합니다."""
+        try:
+            self.indicators_df = pd.read_csv(self.indicators_file)
+            self.indicators_df["Date"] = pd.to_datetime(self.indicators_df["Date"])
+            logger.info("기술적 지표 데이터 로드 완료")
+        except Exception as e:
+            logger.error(f"기술적 지표 데이터 로드 실패: {str(e)}")
+            raise
 
-    def generate_tsi_signals(self) -> pd.Series:
-        """True Strength Index (TSI) 신호 생성
-        
-        매수 신호: TSI가 0선을 상향 돌파
-        매도 신호: TSI가 0선을 하향 돌파
-        
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        tsi_col = 'TSI(2,20)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data[tsi_col] > 0] = 1
-        signals[self.data[tsi_col] < 0] = -1
-        
-        return signals.shift(1)
+    def generate_all(self) -> None:
+        """모든 매매 시그널을 생성합니다."""
+        try:
+            # 시그널 데이터프레임 초기화
+            self.signals_df = pd.DataFrame({"Date": self.indicators_df["Date"]})
 
-    def generate_macd_signals(self) -> pd.Series:
-        """MACD 신호 생성
-        
-        매수 신호: MACD가 시그널선을 상향 돌파
-        매도 신호: MACD가 시그널선을 하향 돌파
-        
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data['MACD(12,26)'] > self.data['MACD Signal(9)']] = 1
-        signals[self.data['MACD(12,26)'] < self.data['MACD Signal(9)']] = -1
-        
-        return signals.shift(1)
+            # 모멘텀 지표 시그널
+            self._generate_momentum_signals()
 
-    def generate_psar_signals(self) -> pd.Series:
-        """Parabolic SAR 신호 생성
-        
-        매수 신호: 종가가 PSAR을 상향 돌파
-        매도 신호: 종가가 PSAR을 하향 돌파
-        
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        psar_col = 'PSAR(0.02)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data['Close'] > self.data[psar_col]] = 1
-        signals[self.data['Close'] < self.data[psar_col]] = -1
-        
-        return signals.shift(1)
+            # 반대매매 지표 시그널
+            self._generate_contrarian_signals()
 
-    def generate_adx_signals(self, threshold: int = 25) -> pd.Series:
-        """ADX 신호 생성
-        
-        매수 신호: ADX > threshold (강한 추세)
-        매도 신호: ADX < threshold (약한 추세)
-        
-        Args:
-            threshold (int): ADX 임계값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        adx_col = 'ADX(20)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data[adx_col] > threshold] = 1
-        signals[self.data[adx_col] < threshold] = -1
-        
-        return signals.shift(1)
+            # 시그널 정렬
+            self.signals_df = self.signals_df.sort_values("Date")
+            logger.info("매매 시그널 생성 완료")
 
-    def generate_aroon_signals(self) -> pd.Series:
-        """Aroon 신호 생성
-        
-        매수 신호: Aroon Up이 Aroon Down을 상향 돌파
-        매도 신호: Aroon Up이 Aroon Down을 하향 돌파
-        
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data['Aroon(20) up'] > self.data['Aroon(20) down']] = 1
-        signals[self.data['Aroon(20) up'] < self.data['Aroon(20) down']] = -1
-        
-        return signals.shift(1)
+        except Exception as e:
+            logger.error(f"매매 시그널 생성 실패: {str(e)}")
+            raise
 
-    def generate_rsi_signals(self, overbought: int = 70, oversold: int = 30) -> pd.Series:
-        """RSI 신호 생성
-        
-        매수 신호: RSI < oversold (과매도)
-        매도 신호: RSI > overbought (과매수)
-        
-        Args:
-            overbought (int): 과매수 기준값
-            oversold (int): 과매도 기준값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        rsi_col = 'RSI(14)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data[rsi_col] < oversold] = 1
-        signals[self.data[rsi_col] > overbought] = -1
-        
-        return signals.shift(1)
+    def _generate_momentum_signals(self) -> None:
+        """모멘텀 지표 기반 시그널을 생성합니다."""
+        # SMA
+        for period in TECHNICAL_INDICATORS["모멘텀 지표"]["SMA"]["periods"]:
+            self.signals_df[f"SMA_{period}_Signal"] = self._generate_sma_signal(period)
 
-    def generate_bb_signals(self) -> pd.Series:
-        """볼린저 밴드 신호 생성
-        
-        매수 신호: 종가가 하단 밴드 하향 돌파
-        매도 신호: 종가가 상단 밴드 상향 돌파
-        
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data['Close'] < self.data['BB_DOWN(20)']] = 1
-        signals[self.data['Close'] > self.data['BB_UP(20)']] = -1
-        
-        return signals.shift(1)
+        # EMA
+        for period in TECHNICAL_INDICATORS["모멘텀 지표"]["EMA"]["periods"]:
+            self.signals_df[f"EMA_{period}_Signal"] = self._generate_ema_signal(period)
 
-    def generate_cci_signals(self, overbought: int = 100, oversold: int = -100) -> pd.Series:
-        """CCI 신호 생성
-        
-        매수 신호: CCI < oversold (과매도)
-        매도 신호: CCI > overbought (과매수)
-        
-        Args:
-            overbought (int): 과매수 기준값
-            oversold (int): 과매도 기준값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        cci_col = 'CCI(20)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data[cci_col] < oversold] = 1
-        signals[self.data[cci_col] > overbought] = -1
-        
-        return signals.shift(1)
+        # TSI
+        short_period = TECHNICAL_INDICATORS["모멘텀 지표"]["TSI"]["short_period"]
+        long_period = TECHNICAL_INDICATORS["모멘텀 지표"]["TSI"]["long_period"]
+        self.signals_df[f"TSI({short_period},{long_period})_Signal"] = self._generate_tsi_signal(short_period, long_period)
 
-    def generate_stochastic_signals(self, overbought: int = 80, oversold: int = 20) -> pd.Series:
-        """스토캐스틱 신호 생성
-        
-        매수 신호: %K가 %D를 상향 돌파하며 과매도 구간
-        매도 신호: %K가 %D를 하향 돌파하며 과매수 구간
-        
-        Args:
-            overbought (int): 과매수 기준값
-            oversold (int): 과매도 기준값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        k_col = 'stochastic_oscillator %K(14)'
-        d_col = 'stochastic_oscillator %D(3)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        # 매수 신호: %K가 %D를 상향 돌파하며 과매도 구간
-        buy_condition = (
-            (self.data[k_col] > self.data[d_col]) & 
-            (self.data[k_col] < oversold)
+        # MACD
+        short_period = TECHNICAL_INDICATORS["모멘텀 지표"]["MACD"]["short_period"]
+        long_period = TECHNICAL_INDICATORS["모멘텀 지표"]["MACD"]["long_period"]
+        signal_period = TECHNICAL_INDICATORS["모멘텀 지표"]["MACD"]["signal_period"]
+        self.signals_df[f"MACD({short_period},{long_period},{signal_period})_Signal"] = self._generate_macd_signal(
+            short_period, long_period, signal_period
         )
-        signals[buy_condition] = 1
-        
-        # 매도 신호: %K가 %D를 하향 돌파하며 과매수 구간
-        sell_condition = (
-            (self.data[k_col] < self.data[d_col]) & 
-            (self.data[k_col] > overbought)
+
+        # PSAR
+        af_start = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_start"]
+        af_increment = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_increment"]
+        af_max = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_max"]
+        self.signals_df[f"PSAR({af_start},{af_increment},{af_max})_Signal"] = self._generate_psar_signal(
+            af_start, af_increment, af_max
         )
-        signals[sell_condition] = -1
-        
-        return signals.shift(1)
 
-    def generate_williams_r_signals(self, overbought: int = -20, oversold: int = -80) -> pd.Series:
-        """Williams %R 신호 생성
-        
-        매수 신호: Williams %R < oversold (과매도)
-        매도 신호: Williams %R > overbought (과매수)
-        
-        Args:
-            overbought (int): 과매수 기준값
-            oversold (int): 과매도 기준값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        williams_col = 'Williams(14)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data[williams_col] < oversold] = 1
-        signals[self.data[williams_col] > overbought] = -1
-        
-        return signals.shift(1)
+        # ADX
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["ADX"]["period"]
+        self.signals_df[f"ADX({period})_Signal"] = self._generate_adx_signal(period)
 
-    def generate_cmo_signals(self, overbought: int = 50, oversold: int = -50) -> pd.Series:
-        """Chande Momentum Oscillator (CMO) 신호 생성
-        
-        매수 신호: CMO < oversold (과매도)
-        매도 신호: CMO > overbought (과매수)
-        
-        Args:
-            overbought (int): 과매수 기준값
-            oversold (int): 과매도 기준값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        cmo_col = 'CMO(14)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data[cmo_col] < oversold] = 1
-        signals[self.data[cmo_col] > overbought] = -1
-        
-        return signals.shift(1)
+        # Aroon
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["Aroon"]["period"]
+        self.signals_df[f"Aroon({period})_Signal"] = self._generate_aroon_signal(period)
 
-    def generate_demark_signals(self, threshold: float = 0.7) -> pd.Series:
-        """DeMarker Indicator 신호 생성
-        
-        매수 신호: DeMarker < 0.3 (과매도)
-        매도 신호: DeMarker > 0.7 (과매수)
-        
-        Args:
-            threshold (float): 과매수/과매도 기준값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        demark_col = 'DEMARK(14)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data[demark_col] < (1 - threshold)] = 1
-        signals[self.data[demark_col] > threshold] = -1
-        
-        return signals.shift(1)
+        # ADL
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["ADL"]["period"]
+        self.signals_df[f"ADL({period})_Signal"] = self._generate_adl_signal(period)
 
-    def generate_donchian_signals(self) -> pd.Series:
-        """Donchian Channel 신호 생성
-        
-        매수 신호: 
-        1. 종가가 상단 밴드에 근접 (상단 밴드의 99% 이상)
-        2. 이전 종가가 더 낮았을 때
-        
-        매도 신호: 
-        1. 종가가 하단 밴드에 근접 (하단 밴드의 101% 이하)
-        2. 이전 종가가 더 높았을 때
-        
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        signals = pd.Series(0, index=self.data.index)
-        
-        # 상단/하단 밴드 근접 범위 설정
-        upper_threshold = self.data['Donchian(20) up'] * 0.99
-        lower_threshold = self.data['Donchian(20) down'] * 1.01
-        
-        # 매수 조건: 상단 밴드 근접 및 상승 추세
-        buy_condition = (
-            (self.data['Close'] >= upper_threshold) & 
-            (self.data['Close'] > self.data['Close'].shift(1))
+        # ADR
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["ADR"]["period"]
+        self.signals_df[f"ADR({period})_Signal"] = self._generate_adr_signal(period)
+
+        # Ichimoku
+        tenkan_period = TECHNICAL_INDICATORS["모멘텀 지표"]["Ichimoku"]["tenkan_period"]
+        kijun_period = TECHNICAL_INDICATORS["모멘텀 지표"]["Ichimoku"]["kijun_period"]
+        self.signals_df[f"Ichimoku({tenkan_period},{kijun_period})_Signal"] = self._generate_ichimoku_signal(
+            tenkan_period, kijun_period
         )
-        
-        # 매도 조건: 하단 밴드 근접 및 하락 추세
-        sell_condition = (
-            (self.data['Close'] <= lower_threshold) & 
-            (self.data['Close'] < self.data['Close'].shift(1))
-        )
-        
-        signals[buy_condition] = 1
-        signals[sell_condition] = -1
-        
-        return signals.shift(1)
-    
-    def generate_pivot_signals(self) -> pd.Series:
-        """Pivot Points 신호 생성
-        
-        매수 신호: 종가가 지지선 근처에서 반등
-        매도 신호: 종가가 저항선 근처에서 하락
-        
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        signals = pd.Series(0, index=self.data.index)
-        
-        # 지지선/저항선 근처 범위 설정 (1% 이내)
-        support_zone = self.data['Support'] * 1.01
-        resistance_zone = self.data['Resistance'] * 0.99
-        
-        # 매수 신호: 종가가 지지선 근처에서 상승
-        buy_condition = (
-            (self.data['Close'] > self.data['Close'].shift(1)) & 
-            (self.data['Close'] < support_zone)
-        )
-        signals[buy_condition] = 1
-        
-        # 매도 신호: 종가가 저항선 근처에서 하락
-        sell_condition = (
-            (self.data['Close'] < self.data['Close'].shift(1)) & 
-            (self.data['Close'] > resistance_zone)
-        )
-        signals[sell_condition] = -1
-        
-        return signals.shift(1)
 
-    def generate_psy_signals(self, overbought: int = 75, oversold: int = 25) -> pd.Series:
-        """Psychological Line (PSY) 신호 생성
-        
-        매수 신호: PSY < oversold (과매도)
-        매도 신호: PSY > overbought (과매수)
-        
-        Args:
-            overbought (int): 과매수 기준값
-            oversold (int): 과매도 기준값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        psy_col = 'PSY(12)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        # PSY 값이 있는 경우에만 시그널 생성
-        mask = ~self.data[psy_col].isna()
-        signals.loc[mask & (self.data[psy_col] < oversold)] = 1
-        signals.loc[mask & (self.data[psy_col] > overbought)] = -1
-        
-        return signals.shift(1)
+        # Keltner
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["Keltner"]["period"]
+        multiplier = TECHNICAL_INDICATORS["모멘텀 지표"]["Keltner"]["multiplier"]
+        self.signals_df[f"Keltner({period},{multiplier})_Signal"] = self._generate_keltner_signal(period, multiplier)
 
-    def generate_npsy_signals(self, threshold: int = 50) -> pd.Series:
-        """Normalized Psychological Line (NPSY) 신호 생성
-        
-        매수 신호: NPSY < -threshold
-        매도 신호: NPSY > threshold
-        
-        Args:
-            threshold (int): 신호 발생 임계값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        npsy_col = 'NPSY(12)'
-        signals = pd.Series(0, index=self.data.index)
-        
-        # NPSY 값이 있는 경우에만 시그널 생성
-        mask = ~self.data[npsy_col].isna()
-        signals.loc[mask & (self.data[npsy_col] < -threshold)] = 1
-        signals.loc[mask & (self.data[npsy_col] > threshold)] = -1
-        
-        return signals
+    def _generate_contrarian_signals(self) -> None:
+        """반대매매 지표 기반 시그널을 생성합니다."""
+        # RSI
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["RSI"]["period"]
+        self.signals_df[f"RSI({period})_Signal"] = self._generate_rsi_signal(period)
 
-    def generate_adl_signals(self, window_size: int = 20) -> pd.Series:
-        """Accumulation Distribution Line (ADL) 신호 생성
-        
-        매수 신호: ADL이 상승 추세 (이전 값보다 증가)
-        매도 신호: ADL이 하락 추세 (이전 값보다 감소)
-        
-        Args:
-            window_size (int): 이동평균 기간
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        adl_col = f'ADL({window_size})'
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data[adl_col] > self.data[adl_col].shift(1)] = 1
-        signals[self.data[adl_col] < self.data[adl_col].shift(1)] = -1
-        
-        return signals.shift(1)
+        # BB
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["BB"]["period"]
+        std_dev = TECHNICAL_INDICATORS["반대매매 지표"]["BB"]["std_dev"]
+        self.signals_df[f"BB({period},{std_dev})_Signal"] = self._generate_bb_signal(period, std_dev)
 
-    def generate_adr_signals(self, window_size: int = 20, threshold: float = 1.5) -> pd.Series:
-        """Average Daily Range (ADR) 신호 생성
-        
-        매수 신호: 당일 범위가 ADR의 threshold배 이상
-        매도 신호: 당일 범위가 ADR의 1/threshold배 이하
-        
-        Args:
-            window_size (int): ADR 계산 기간
-            threshold (float): 신호 발생 임계값
-            
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        adr_col = f'ADR({window_size})'
-        signals = pd.Series(0, index=self.data.index)
-        
-        daily_range = self.data['High'] - self.data['Low']
-        
-        signals[daily_range > (self.data[adr_col] * threshold)] = 1
-        signals[daily_range < (self.data[adr_col] / threshold)] = -1
-        
-        return signals.shift(1)
+        # CCI
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["CCI"]["period"]
+        self.signals_df[f"CCI({period})_Signal"] = self._generate_cci_signal(period)
 
-    def generate_keltner_signals(self) -> pd.Series:
-        """Keltner Channel 신호 생성
-        
-        매수 신호: 종가가 하단 밴드 하향 돌파
-        매도 신호: 종가가 상단 밴드 상향 돌파
-        
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        signals = pd.Series(0, index=self.data.index)
-        
-        signals[self.data['Close'] < self.data['Keltner(20)_lower']] = 1
-        signals[self.data['Close'] > self.data['Keltner(20)_upper']] = -1
-        
-        return signals.shift(1)
+        # Stoch
+        k_period = TECHNICAL_INDICATORS["반대매매 지표"]["Stoch"]["k_period"]
+        d_period = TECHNICAL_INDICATORS["반대매매 지표"]["Stoch"]["d_period"]
+        self.signals_df[f"Stoch({k_period},{d_period})_Signal"] = self._generate_stoch_signal(k_period, d_period)
 
-    def generate_ichimoku_signals(self) -> pd.Series:
-        """Ichimoku Cloud 신호 생성
-        
-        매수 신호: 
-        1. 전환선이 기준선을 상향 돌파
-        2. 가격이 구름대 위에 위치
-        
-        매도 신호:
-        1. 전환선이 기준선을 하향 돌파
-        2. 가격이 구름대 아래에 위치
-        
-        Returns:
-            pd.Series: 1 (매수), -1 (매도), 0 (중립)
-        """
-        signals = pd.Series(0, index=self.data.index)
-        
-        # 매수 조건
-        buy_condition = (
-            (self.data['Tenkan(9)'] > self.data['Kijun(26)'])
-        )
-        signals[buy_condition] = 1
-        
-        # 매도 조건
-        sell_condition = (
-            (self.data['Tenkan(9)'] < self.data['Kijun(26)'])
-        )
-        signals[sell_condition] = -1
-        
-        return signals.shift(1)
+        # Williams
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["Williams"]["period"]
+        self.signals_df[f"Williams({period})_Signal"] = self._generate_williams_signal(period)
 
-    def generate_momentum_signals(self) -> pd.DataFrame:
-        """모멘텀 지표 기반 신호 생성"""
-        signals = pd.DataFrame(index=self.data.index)
+        # CMO
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["CMO"]["period"]
+        self.signals_df[f"CMO({period})_Signal"] = self._generate_cmo_signal(period)
+
+        # DeMarker
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["DeMarker"]["period"]
+        self.signals_df[f"DeMarker({period})_Signal"] = self._generate_demarker_signal(period)
+
+        # Donchian
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["Donchian"]["period"]
+        self.signals_df[f"Donchian({period})_Signal"] = self._generate_donchian_signal(period)
+
+        # Pivot
+        method = TECHNICAL_INDICATORS["반대매매 지표"]["Pivot"]["method"]
+        self.signals_df[f"Pivot({method})_Signal"] = self._generate_pivot_signal(method)
+
+        # PSY
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["PSY"]["period"]
+        self.signals_df[f"PSY({period})_Signal"] = self._generate_psy_signal(period)
+
+        # NPSY
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["NPSY"]["period"]
+        self.signals_df[f"NPSY({period})_Signal"] = self._generate_npsy_signal(period)
+
+    def _generate_sma_signal(self, period: int) -> pd.Series:
+        """SMA 시그널을 생성합니다.
         
-        # 각 모멘텀 지표별 신호 생성
-        signals['SMA'] = self.generate_sma_signals()
-        signals['EMA'] = self.generate_ema_signals()
-        signals['TSI'] = self.generate_tsi_signals()
-        signals['MACD'] = self.generate_macd_signals()
-        signals['PSAR'] = self.generate_psar_signals()
-        signals['ADX'] = self.generate_adx_signals()
-        signals['Aroon'] = self.generate_aroon_signals()
-        signals['ADL'] = self.generate_adl_signals()
-        signals['ADR'] = self.generate_adr_signals()
-        signals['Ichimoku'] = self.generate_ichimoku_signals()
-        signals['Keltner'] = self.generate_keltner_signals()
-        
-        return signals
-    
-    def generate_contrarian_signals(self) -> pd.DataFrame:
-        """반추세 지표 기반 신호 생성"""
-        signals = pd.DataFrame(index=self.data.index)
-        
-        # 각 반추세 지표별 신호 생성
-        signals['RSI'] = self.generate_rsi_signals()
-        signals['BB'] = self.generate_bb_signals()
-        signals['CCI'] = self.generate_cci_signals()
-        signals['Stoch'] = self.generate_stochastic_signals()
-        signals['Williams'] = self.generate_williams_r_signals()
-        signals['CMO'] = self.generate_cmo_signals()
-        signals['DeMarker'] = self.generate_demark_signals()
-        signals['Donchian'] = self.generate_donchian_signals()
-        signals['Pivot'] = self.generate_pivot_signals()
-        signals['PSY'] = self.generate_psy_signals()
-        signals['NPSY'] = self.generate_npsy_signals()
-        
-        return signals
-    
-    def calculate_signal_performance(self, signals: pd.DataFrame, 
-                                  forward_periods: List[int] = [1, 5, 10, 20]) -> Dict[str, pd.DataFrame]:
-        """신호별 성과 계산
-        
-        Args:
-            signals (pd.DataFrame): 신호 데이터프레임
-            forward_periods (List[int]): 성과 측정 기간 리스트
-            
-        Returns:
-            Dict[str, pd.DataFrame]: 신호별 성과 지표
+        시그널 생성 로직:
+        - 매수: 현재 종가 > SMA
+        - 매도: 현재 종가 < SMA
+        - 중립: 그 외
         """
-        performance = {}
+        close = self.indicators_df["Close"]
+        sma = self.indicators_df[f"SMA_{period}"]
+
+        signal = pd.Series(0, index=close.index)
+        signal[close > sma] = 1
+        signal[close < sma] = -1
+
+        return signal
+
+    def _generate_ema_signal(self, period: int) -> pd.Series:
+        """EMA 시그널을 생성합니다.
         
-        for col in signals.columns:
-            perf_df = pd.DataFrame(index=signals.index)
-            
-            for period in forward_periods:
-                # 수익률 계산
-                returns = (self.data['Close'].shift(-period) - self.data['Close']) / self.data['Close']
-                
-                # 매수 신호 성과
-                buy_mask = signals[col] == 1
-                perf_df[f'{period}D_Buy_Return'] = np.where(buy_mask, returns, np.nan)
-                perf_df[f'{period}D_Buy_Win_Rate'] = np.where(
-                    buy_mask, 
-                    np.where(returns > 0, 1, 0), 
-                    np.nan
-                )
-                
-                # 매도 신호 성과
-                sell_mask = signals[col] == -1
-                perf_df[f'{period}D_Sell_Return'] = np.where(sell_mask, -returns, np.nan)
-                perf_df[f'{period}D_Sell_Win_Rate'] = np.where(
-                    sell_mask,
-                    np.where(returns < 0, 1, 0),
-                    np.nan
-                )
-            
-            performance[col] = perf_df
-            
-        return performance
-    
-    def get_signal_summary(self, performance: Dict[str, pd.DataFrame]) -> pd.DataFrame:
-        """신호별 성과 요약
-        
-        Args:
-            performance (Dict[str, pd.DataFrame]): 신호별 성과 데이터
-            
-        Returns:
-            pd.DataFrame: 성과 요약 데이터프레임
+        시그널 생성 로직:
+        - 매수: 현재 종가 > EMA
+        - 매도: 현재 종가 < EMA
+        - 중립: 그 외
         """
-        summary = []
+        close = self.indicators_df["Close"]
+        ema = self.indicators_df[f"EMA_{period}"]
+
+        signal = pd.Series(0, index=close.index)
+        signal[close > ema] = 1
+        signal[close < ema] = -1
+
+        return signal
+
+    def _generate_tsi_signal(self, short_period: int, long_period: int) -> pd.Series:
+        """TSI 시그널을 생성합니다.
         
-        for signal_name, perf_df in performance.items():
-            signal_summary = {}
-            signal_summary['Signal'] = signal_name
-            
-            # 매수/매도 신호 성과 계산
-            for direction in ['Buy', 'Sell']:
-                for period in [1, 5, 10, 20]:
-                    returns = perf_df[f'{period}D_{direction}_Return'].mean()
-                    win_rate = perf_df[f'{period}D_{direction}_Win_Rate'].mean()
-                    
-                    signal_summary[f'{period}D_{direction}_Avg_Return'] = returns
-                    signal_summary[f'{period}D_{direction}_Win_Rate'] = win_rate
-            
-            summary.append(signal_summary)
-            
-        return pd.DataFrame(summary)
+        시그널 생성 로직:
+        - 매수: TSI > TSI Signal
+        - 매도: TSI < TSI Signal
+        - 중립: 그 외
+        """
+        tsi = self.indicators_df[f"TSI({short_period},{long_period})"]
+        tsi_signal = self.indicators_df[f"TSI_Signal({short_period},{long_period})"]
+
+        signal = pd.Series(0, index=tsi.index)
+        signal[tsi > tsi_signal] = 1
+        signal[tsi < tsi_signal] = -1
+
+        return signal
+
+    def _generate_macd_signal(self, short_period: int, long_period: int, signal_period: int) -> pd.Series:
+        """MACD 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: MACD > MACD Signal
+        - 매도: MACD < MACD Signal
+        - 중립: 그 외
+        """
+        macd = self.indicators_df[f"MACD({short_period},{long_period})"]
+        macd_signal = self.indicators_df[f"MACD_Signal({short_period},{long_period},{signal_period})"]
+
+        signal = pd.Series(0, index=macd.index)
+        signal[macd > macd_signal] = 1
+        signal[macd < macd_signal] = -1
+
+        return signal
+
+    def _generate_psar_signal(self, af_start: float, af_increment: float, af_max: float) -> pd.Series:
+        """PSAR 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: 현재 종가 > PSAR
+        - 매도: 현재 종가 < PSAR
+        - 중립: 그 외
+        """
+        close = self.indicators_df["Close"]
+        psar = self.indicators_df[f"PSAR({af_start},{af_increment},{af_max})"]
+
+        signal = pd.Series(0, index=close.index)
+        signal[close > psar] = 1
+        signal[close < psar] = -1
+
+        return signal
+
+    def _generate_adx_signal(self, period: int) -> pd.Series:
+        """ADX 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: ADX > 25 and +DI > -DI
+        - 매도: ADX > 25 and +DI < -DI
+        - 중립: 그 외
+        """
+        adx = self.indicators_df[f"ADX({period})"]
+        plus_di = self.indicators_df[f"ADX_Plus_DI({period})"]
+        minus_di = self.indicators_df[f"ADX_Minus_DI({period})"]
+
+        signal = pd.Series(0, index=adx.index)
+        signal[(adx > 25) & (plus_di > minus_di)] = 1
+        signal[(adx > 25) & (plus_di < minus_di)] = -1
+
+        return signal
+
+    def _generate_aroon_signal(self, period: int) -> pd.Series:
+        """Aroon 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: Aroon Up > Aroon Down
+        - 매도: Aroon Up < Aroon Down
+        - 중립: 그 외
+        """
+        aroon_up = self.indicators_df[f"Aroon_Up({period})"]
+        aroon_down = self.indicators_df[f"Aroon_Down({period})"]
+
+        signal = pd.Series(0, index=aroon_up.index)
+        signal[aroon_up > aroon_down] = 1
+        signal[aroon_up < aroon_down] = -1
+
+        return signal
+
+    def _generate_adl_signal(self, period: int) -> pd.Series:
+        """ADL 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: ADL > ADL SMA
+        - 매도: ADL < ADL SMA
+        - 중립: 그 외
+        """
+        adl = self.indicators_df[f"ADL({period})"]
+        adl_sma = self.indicators_df[f"ADL_SMA({period})"]
+
+        signal = pd.Series(0, index=adl.index)
+        signal[adl > adl_sma] = 1
+        signal[adl < adl_sma] = -1
+
+        return signal
+
+    def _generate_adr_signal(self, period: int) -> pd.Series:
+        """ADR 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: ADR > ADR SMA
+        - 매도: ADR < ADR SMA
+        - 중립: 그 외
+        """
+        adr = self.indicators_df[f"ADR({period})"]
+        adr_sma = self.indicators_df[f"ADR_SMA({period})"]
+
+        signal = pd.Series(0, index=adr.index)
+        signal[adr > adr_sma] = 1
+        signal[adr < adr_sma] = -1
+
+        return signal
+
+    def _generate_ichimoku_signal(self, tenkan_period: int, kijun_period: int) -> pd.Series:
+        """Ichimoku 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: Tenkan-sen > Kijun-sen
+        - 매도: Tenkan-sen < Kijun-sen
+        - 중립: 그 외
+        """
+        tenkan = self.indicators_df[f"Ichimoku_Tenkan({tenkan_period})"]
+        kijun = self.indicators_df[f"Ichimoku_Kijun({kijun_period})"]
+
+        signal = pd.Series(0, index=tenkan.index)
+        signal[tenkan > kijun] = 1
+        signal[tenkan < kijun] = -1
+
+        return signal
+
+    def _generate_keltner_signal(self, period: int, multiplier: float) -> pd.Series:
+        """Keltner Channel 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: 현재 종가 > 상단 밴드
+        - 매도: 현재 종가 < 하단 밴드
+        - 중립: 그 외
+        """
+        close = self.indicators_df["Close"]
+        upper = self.indicators_df[f"Keltner_Upper({period},{multiplier})"]
+        lower = self.indicators_df[f"Keltner_Lower({period},{multiplier})"]
+
+        signal = pd.Series(0, index=close.index)
+        signal[close > upper] = 1
+        signal[close < lower] = -1
+
+        return signal
+
+    def _generate_rsi_signal(self, period: int) -> pd.Series:
+        """RSI 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: RSI < 30
+        - 매도: RSI > 70
+        - 중립: 그 외
+        """
+        rsi = self.indicators_df[f"RSI({period})"]
+
+        signal = pd.Series(0, index=rsi.index)
+        signal[rsi < 30] = 1
+        signal[rsi > 70] = -1
+
+        return signal
+
+    def _generate_bb_signal(self, period: int, std_dev: float) -> pd.Series:
+        """Bollinger Bands 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: 현재 종가 < 하단 밴드
+        - 매도: 현재 종가 > 상단 밴드
+        - 중립: 그 외
+        """
+        close = self.indicators_df["Close"]
+        upper = self.indicators_df[f"BB_Upper({period},{std_dev})"]
+        lower = self.indicators_df[f"BB_Lower({period},{std_dev})"]
+
+        signal = pd.Series(0, index=close.index)
+        signal[close < lower] = 1
+        signal[close > upper] = -1
+
+        return signal
+
+    def _generate_cci_signal(self, period: int) -> pd.Series:
+        """CCI 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: CCI < -100
+        - 매도: CCI > 100
+        - 중립: 그 외
+        """
+        cci = self.indicators_df[f"CCI({period})"]
+
+        signal = pd.Series(0, index=cci.index)
+        signal[cci < -100] = 1
+        signal[cci > 100] = -1
+
+        return signal
+
+    def _generate_stoch_signal(self, k_period: int, d_period: int) -> pd.Series:
+        """Stochastic Oscillator 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: %K < 20 and %D < 20
+        - 매도: %K > 80 and %D > 80
+        - 중립: 그 외
+        """
+        k = self.indicators_df[f"Stoch_K({k_period})"]
+        d = self.indicators_df[f"Stoch_D({k_period},{d_period})"]
+
+        signal = pd.Series(0, index=k.index)
+        signal[(k < 20) & (d < 20)] = 1
+        signal[(k > 80) & (d > 80)] = -1
+
+        return signal
+
+    def _generate_williams_signal(self, period: int) -> pd.Series:
+        """Williams %R 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: Williams %R < -80
+        - 매도: Williams %R > -20
+        - 중립: 그 외
+        """
+        williams = self.indicators_df[f"Williams({period})"]
+
+        signal = pd.Series(0, index=williams.index)
+        signal[williams < -80] = 1
+        signal[williams > -20] = -1
+
+        return signal
+
+    def _generate_cmo_signal(self, period: int) -> pd.Series:
+        """CMO 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: CMO < -50
+        - 매도: CMO > 50
+        - 중립: 그 외
+        """
+        cmo = self.indicators_df[f"CMO({period})"]
+
+        signal = pd.Series(0, index=cmo.index)
+        signal[cmo < -50] = 1
+        signal[cmo > 50] = -1
+
+        return signal
+
+    def _generate_demarker_signal(self, period: int) -> pd.Series:
+        """DeMarker 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: DeMarker < 0.2
+        - 매도: DeMarker > 0.8
+        - 중립: 그 외
+        """
+        demarker = self.indicators_df[f"DeMarker({period})"]
+
+        signal = pd.Series(0, index=demarker.index)
+        signal[demarker < 0.2] = 1
+        signal[demarker > 0.8] = -1
+
+        return signal
+
+    def _generate_donchian_signal(self, period: int) -> pd.Series:
+        """Donchian Channel 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: 현재 종가 > 상단 밴드
+        - 매도: 현재 종가 < 하단 밴드
+        - 중립: 그 외
+        """
+        close = self.indicators_df["Close"]
+        upper = self.indicators_df[f"Donchian_Upper({period})"]
+        lower = self.indicators_df[f"Donchian_Lower({period})"]
+
+        signal = pd.Series(0, index=close.index)
+        signal[close > upper] = 1
+        signal[close < lower] = -1
+
+        return signal
+
+    def _generate_pivot_signal(self, method: str) -> pd.Series:
+        """Pivot Points 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: 현재 종가 < S1
+        - 매도: 현재 종가 > R1
+        - 중립: 그 외
+        """
+        close = self.indicators_df["Close"]
+        r1 = self.indicators_df[f"Pivot_R1({method})"]
+        s1 = self.indicators_df[f"Pivot_S1({method})"]
+
+        signal = pd.Series(0, index=close.index)
+        signal[close < s1] = 1
+        signal[close > r1] = -1
+
+        return signal
+
+    def _generate_psy_signal(self, period: int) -> pd.Series:
+        """Psychological Line 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: PSY < 30
+        - 매도: PSY > 70
+        - 중립: 그 외
+        """
+        psy = self.indicators_df[f"PSY({period})"]
+
+        signal = pd.Series(0, index=psy.index)
+        signal[psy < 30] = 1
+        signal[psy > 70] = -1
+
+        return signal
+
+    def _generate_npsy_signal(self, period: int) -> pd.Series:
+        """Negative Psychological Line 시그널을 생성합니다.
+        
+        시그널 생성 로직:
+        - 매수: NPSY < 30
+        - 매도: NPSY > 70
+        - 중립: 그 외
+        """
+        npsy = self.indicators_df[f"NPSY({period})"]
+
+        signal = pd.Series(0, index=npsy.index)
+        signal[npsy < 30] = 1
+        signal[npsy > 70] = -1
+
+        return signal
+
+    def save_signals(self) -> None:
+        """시그널을 파일로 저장합니다."""
+        try:
+            # 디렉토리가 없으면 생성
+            self.output_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # 저장
+            self.signals_df.to_csv(self.output_file, index=False)
+            logger.info(f"매매 시그널 저장 완료: {self.output_file}")
+
+        except Exception as e:
+            logger.error(f"매매 시그널 저장 실패: {str(e)}")
+            raise
+
+
+if __name__ == "__main__":
+    # 시그널 생성 실행
+    generator = SignalGenerator()
+    generator.generate_all()
+    generator.save_signals()

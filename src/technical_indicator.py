@@ -1,583 +1,668 @@
+"""
+기술적 지표 계산 모듈
+"""
+
+import logging
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-__docformat__ = 'restructuredtext en'
-__author__ = "<Tommy Lee>, <Joon Kim>"
-__all__ = ['CORE16MomentumIndicator','CORE16ContrarianIndicator']
+from config import INDICATORS_FILE, SPY_DATA_FILE, TECHNICAL_INDICATORS
 
-class CORE16MomentumIndicator(object):
+logger = logging.getLogger(__name__)
+
+
+class TechnicalIndicator:
+    """기술적 지표 계산 클래스"""
+
     def __init__(
-            self, ohlcv_data: pd.DataFrame,
-            resample: str = 'W-FRI'
-    ) -> None:
-        self.ohlcv_data = ohlcv_data
-        self.resample = resample
+        self,
+        data_file: Path = SPY_DATA_FILE,
+        output_file: Path = INDICATORS_FILE,
+    ):
+        """
+        Args:
+            data_file (Path): OHLCV 데이터 파일 경로
+            output_file (Path): 출력 파일 경로
+        """
+        self.data_file = data_file
+        self.output_file = output_file
+        self.df = None
+        self.indicators_df = None
+        self._load_data()
 
-    def _resample_ohlcv_data(self):
-        if self.resample != '1d':
-            open_data = self.ohlcv_data['Open'].resample(self.resample).first()
-            high_data = self.ohlcv_data['High'].resample(self.resample).max()
-            low_data = self.ohlcv_data['Low'].resample(self.resample).min()
-            close_data = self.ohlcv_data['Close'].resample(self.resample).last()
-            if 'Adj Close' in self.ohlcv_data.columns:
-                adjusted_close_data = self.ohlcv_data['Adj Close'].resample(self.resample).last()
-            volume_data = self.ohlcv_data['Volume'].resample(self.resample).sum()
+    def _load_data(self) -> None:
+        """데이터를 로드합니다."""
+        try:
+            self.df = pd.read_csv(self.data_file)
+            self.df["Date"] = pd.to_datetime(self.df["Date"])
+            logger.info("OHLCV 데이터 로드 완료")
+        except Exception as e:
+            logger.error(f"OHLCV 데이터 로드 실패: {str(e)}")
+            raise
 
-            # Combine the resampled volume data with the rest of the OHLCV data
-            if 'Adj Close' in self.ohlcv_data.columns:
-                data = pd.concat([open_data, high_data, low_data, close_data, adjusted_close_data, volume_data], axis=1)
-                data.columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+    def calculate_all(self) -> None:
+        """모든 기술적 지표를 계산합니다."""
+        try:
+            # 지표 데이터프레임 초기화
+            self.indicators_df = pd.DataFrame({"Date": self.df["Date"]})
+
+            # OHLCV 데이터 추가
+            self.indicators_df["Open"] = self.df["Open"]
+            self.indicators_df["High"] = self.df["High"]
+            self.indicators_df["Low"] = self.df["Low"]
+            self.indicators_df["Close"] = self.df["Close"]
+            self.indicators_df["Volume"] = self.df["Volume"]
+
+            # 모멘텀 지표 계산
+            self._calculate_momentum_indicators()
+
+            # 반대매매 지표 계산
+            self._calculate_contrarian_indicators()
+
+            # 지표 정렬
+            self.indicators_df = self.indicators_df.sort_values("Date")
+            logger.info("기술적 지표 계산 완료")
+
+        except Exception as e:
+            logger.error(f"기술적 지표 계산 실패: {str(e)}")
+            raise
+
+    def _calculate_momentum_indicators(self) -> None:
+        """모멘텀 지표를 계산합니다."""
+        # SMA
+        for period in TECHNICAL_INDICATORS["모멘텀 지표"]["SMA"]["periods"]:
+            self.indicators_df[f"SMA_{period}"] = self._calculate_sma(period)
+
+        # EMA
+        for period in TECHNICAL_INDICATORS["모멘텀 지표"]["EMA"]["periods"]:
+            self.indicators_df[f"EMA_{period}"] = self._calculate_ema(period)
+
+        # TSI
+        short_period = TECHNICAL_INDICATORS["모멘텀 지표"]["TSI"]["short_period"]
+        long_period = TECHNICAL_INDICATORS["모멘텀 지표"]["TSI"]["long_period"]
+        self._calculate_tsi(short_period, long_period)
+
+        # MACD
+        short_period = TECHNICAL_INDICATORS["모멘텀 지표"]["MACD"]["short_period"]
+        long_period = TECHNICAL_INDICATORS["모멘텀 지표"]["MACD"]["long_period"]
+        signal_period = TECHNICAL_INDICATORS["모멘텀 지표"]["MACD"]["signal_period"]
+        self._calculate_macd(short_period, long_period, signal_period)
+
+        # PSAR
+        af_start = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_start"]
+        af_increment = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_increment"]
+        af_max = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_max"]
+        self.indicators_df[f"PSAR({af_start},{af_increment},{af_max})"] = self._calculate_psar(af_start, af_increment, af_max)
+
+        # ADX
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["ADX"]["period"]
+        self._calculate_adx(period)
+
+        # Aroon
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["Aroon"]["period"]
+        self._calculate_aroon(period)
+
+        # ADL
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["ADL"]["period"]
+        self._calculate_adl(period)
+
+        # ADR
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["ADR"]["period"]
+        self._calculate_adr(period)
+
+        # Ichimoku
+        tenkan_period = TECHNICAL_INDICATORS["모멘텀 지표"]["Ichimoku"]["tenkan_period"]
+        kijun_period = TECHNICAL_INDICATORS["모멘텀 지표"]["Ichimoku"]["kijun_period"]
+        self._calculate_ichimoku(tenkan_period, kijun_period)
+
+        # Keltner
+        period = TECHNICAL_INDICATORS["모멘텀 지표"]["Keltner"]["period"]
+        multiplier = TECHNICAL_INDICATORS["모멘텀 지표"]["Keltner"]["multiplier"]
+        self._calculate_keltner(period, multiplier)
+
+    def _calculate_contrarian_indicators(self) -> None:
+        """반대매매 지표를 계산합니다."""
+        # RSI
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["RSI"]["period"]
+        self.indicators_df[f"RSI({period})"] = self._calculate_rsi(period)
+
+        # BB
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["BB"]["period"]
+        std_dev = TECHNICAL_INDICATORS["반대매매 지표"]["BB"]["std_dev"]
+        self._calculate_bb(period, std_dev)
+
+        # CCI
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["CCI"]["period"]
+        self.indicators_df[f"CCI({period})"] = self._calculate_cci(period)
+
+        # Stoch
+        k_period = TECHNICAL_INDICATORS["반대매매 지표"]["Stoch"]["k_period"]
+        d_period = TECHNICAL_INDICATORS["반대매매 지표"]["Stoch"]["d_period"]
+        self._calculate_stoch(k_period, d_period)
+
+        # Williams
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["Williams"]["period"]
+        self.indicators_df[f"Williams({period})"] = self._calculate_williams(period)
+
+        # CMO
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["CMO"]["period"]
+        self.indicators_df[f"CMO({period})"] = self._calculate_cmo(period)
+
+        # DeMarker
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["DeMarker"]["period"]
+        self.indicators_df[f"DeMarker({period})"] = self._calculate_demarker(period)
+
+        # Donchian
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["Donchian"]["period"]
+        self._calculate_donchian(period)
+
+        # Pivot
+        method = TECHNICAL_INDICATORS["반대매매 지표"]["Pivot"]["method"]
+        self._calculate_pivot(method)
+
+        # PSY
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["PSY"]["period"]
+        self.indicators_df[f"PSY({period})"] = self._calculate_psy(period)
+
+        # NPSY
+        period = TECHNICAL_INDICATORS["반대매매 지표"]["NPSY"]["period"]
+        self.indicators_df[f"NPSY({period})"] = self._calculate_npsy(period)
+
+    def _calculate_sma(self, period: int) -> pd.Series:
+        """단순 이동평균을 계산합니다."""
+        return self.df["Close"].rolling(window=period).mean()
+
+    def _calculate_ema(self, period: int) -> pd.Series:
+        """지수 이동평균을 계산합니다."""
+        return self.df["Close"].ewm(span=period, adjust=False).mean()
+
+    def _calculate_tsi(self, short_period: int, long_period: int) -> None:
+        """True Strength Index를 계산합니다.
+        
+        수식:
+        - 가격 변화 = 현재 종가 - 이전 종가
+        - 이중 지수 이동평균 = EMA(EMA(가격 변화, 25), 13)
+        - 이중 지수 이동평균 절대값 = EMA(EMA(|가격 변화|, 25), 13)
+        - TSI = 100 * (이중 지수 이동평균 / 이중 지수 이동평균 절대값)
+        """
+        # 가격 변화
+        price_change = self.df["Close"].diff()
+        abs_price_change = abs(price_change)
+
+        # 이중 지수 이동평균
+        tsi = (
+            100
+            * (
+                price_change.ewm(span=long_period, adjust=False).mean().ewm(span=short_period, adjust=False).mean()
+                / abs_price_change.ewm(span=long_period, adjust=False).mean().ewm(span=short_period, adjust=False).mean()
+            )
+        )
+        signal = tsi.ewm(span=short_period, adjust=False).mean()
+
+        self.indicators_df[f"TSI({short_period},{long_period})"] = tsi
+        self.indicators_df[f"TSI_Signal({short_period},{long_period})"] = signal
+
+    def _calculate_macd(self, short_period: int, long_period: int, signal_period: int) -> None:
+        """MACD를 계산합니다.
+        
+        수식:
+        - MACD 라인 = EMA(12) - EMA(26)
+        - 시그널 라인 = EMA(MACD 라인, 9)
+        - 히스토그램 = MACD 라인 - 시그널 라인
+        """
+        # MACD 라인
+        macd = (
+            self.df["Close"].ewm(span=short_period, adjust=False).mean()
+            - self.df["Close"].ewm(span=long_period, adjust=False).mean()
+        )
+        # 시그널 라인
+        signal = macd.ewm(span=signal_period, adjust=False).mean()
+        # 히스토그램
+        hist = macd - signal
+
+        self.indicators_df[f"MACD({short_period},{long_period})"] = macd
+        self.indicators_df[f"MACD_Signal({short_period},{long_period},{signal_period})"] = signal
+        self.indicators_df[f"MACD_Hist({short_period},{long_period},{signal_period})"] = hist
+
+    def _calculate_psar(self, af_start: float, af_increment: float, af_max: float) -> pd.Series:
+        """Parabolic SAR을 계산합니다."""
+        high = self.df["High"]
+        low = self.df["Low"]
+        close = self.df["Close"]
+
+        psar = close.copy()
+        trend = pd.Series(1, index=close.index)
+        af = af_start
+        ep = high[0]
+        psar[0] = low[0]
+
+        for i in range(1, len(close)):
+            if trend[i - 1] == 1:
+                psar[i] = psar[i - 1] + af * (ep - psar[i - 1])
+                psar[i] = min(psar[i], low[i - 1], low[i - 2] if i > 1 else low[i - 1])
+                if close[i] > ep:
+                    ep = close[i]
+                    af = min(af + af_increment, af_max)
+                if close[i] < psar[i]:
+                    trend[i] = -1
+                    psar[i] = ep
+                    ep = low[i]
+                    af = af_start
+                else:
+                    trend[i] = 1
             else:
-                data = pd.concat([open_data, high_data, low_data, close_data, volume_data], axis=1)
-                data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                psar[i] = psar[i - 1] - af * (psar[i - 1] - ep)
+                psar[i] = max(
+                    psar[i], high[i - 1], high[i - 2] if i > 1 else high[i - 1]
+                )
+                if close[i] < ep:
+                    ep = close[i]
+                    af = min(af + af_increment, af_max)
+                if close[i] > psar[i]:
+                    trend[i] = 1
+                    psar[i] = ep
+                    ep = high[i]
+                    af = af_start
+                else:
+                    trend[i] = -1
 
-            data.ffill(inplace=True)
-            return data
-        else :
-            return self.ohlcv_data
-
-    def simple_moving_average(
-            self, window_size: int = 20,
-            column_name: str = 'Close'
-    ) -> pd.Series:
-        data = self._resample_ohlcv_data()
-        res = data[column_name].rolling(window_size).mean()
-        res.name = f'SMA({window_size})'
-        return res
-
-    def exponential_moving_average(
-            self, window_size: int = 20,
-            column_name: str = 'Close'
-    ) -> pd.Series:
-        data = self._resample_ohlcv_data()
-        res = data[column_name].ewm(window_size).mean()
-        res.name = f'EMA({window_size})'
-        return res
-
-    def true_strength_index(
-            self, short_window_size: int = 2,
-            long_window_size: int = 20,
-            column_name: str = 'Close',
-    ) -> pd.Series:
-        data = self._resample_ohlcv_data()
-        momentum = data[column_name].diff(1)
-        abs_momentum = abs(momentum)
-
-        double_smoothed_momentum = momentum.ewm(long_window_size).mean().ewm(short_window_size).mean()
-        double_smoothed_abs_momentum = abs_momentum.ewm(long_window_size).mean().ewm(short_window_size).mean()
-
-        res = 100 * (double_smoothed_momentum / double_smoothed_abs_momentum)
-        res.name = f'TSI({short_window_size},{long_window_size})'
-
-        return res
-
-    def moving_average_convergence_divergence(
-            self, short_window_size: int = 12,
-            long_window_size: int = 26,
-            signal_window_size: int = 9,
-            column_name: str = 'Close'
-    ) -> pd.DataFrame:
-        res = pd.DataFrame()
-        data = self._resample_ohlcv_data()
-
-        res[f'EMA({short_window_size})'] = data[column_name].ewm(
-            span=short_window_size, adjust=False
-        ).mean()  # Calculate short-term EMA
-        res[f'EMA({long_window_size})'] = data[column_name].ewm(
-            span=long_window_size, adjust=False
-        ).mean()  # Calculate long-term EMA
-
-        res[f'MACD({short_window_size},{long_window_size})'] = res[f'EMA({short_window_size})'] - res[
-            f'EMA({long_window_size})']  # Calculate MACD Line (difference between short and long EMA)
-        res[f'MACD Signal({signal_window_size})'] = res[f'MACD({short_window_size},{long_window_size})'].ewm(
-            span=signal_window_size, adjust=False).mean()  # Calculate Signal Line (EMA of MACD)
-        return res
-
-    def parabolic_stop_and_reverse(
-            self,
-            acceleration_factor_step: float = 0.02,
-            acceleration_factor_max: float = 0.2
-    ) -> pd.Series:
-
-        data = self._resample_ohlcv_data()
-
-        # 초기화 시 인덱스를 데이터와 동일하게 설정
-        psar = pd.Series(index=data.index, dtype=float)
-        psar_direction = pd.Series(index=data.index, dtype=str)
-        psar_af = acceleration_factor_step
-
-        # 초기값 설정
-        psar.iloc[0] = data['Close'].iloc[0]
-        psar_ep = data['High'].iloc[0] if data['Close'].iloc[1] > data['Close'].iloc[0] else data['Low'].iloc[0]
-        uptrend = data['Close'].iloc[1] > data['Close'].iloc[0]
-
-        for i in range(1, len(data)):
-            previous_psar = psar.iloc[i - 1]
-            if uptrend:
-                psar.iloc[i] = previous_psar + psar_af * (psar_ep - previous_psar)
-                if data['Low'].iloc[i] < psar.iloc[i]:
-                    uptrend = False
-                    psar.iloc[i] = psar_ep
-                    psar_af = acceleration_factor_step
-                    psar_ep = data['Low'].iloc[i]
-            else:
-                psar.iloc[i] = previous_psar - psar_af * (previous_psar - psar_ep)
-                if data['High'].iloc[i] > psar.iloc[i]:
-                    uptrend = True
-                    psar.iloc[i] = psar_ep
-                    psar_af = acceleration_factor_step
-                    psar_ep = data['High'].iloc[i]
-
-            if uptrend:
-                if data['High'].iloc[i] > psar_ep:
-                    psar_ep = data['High'].iloc[i]
-                    psar_af = min(psar_af + acceleration_factor_step, acceleration_factor_max)
-            else:
-                if data['Low'].iloc[i] < psar_ep:
-                    psar_ep = data['Low'].iloc[i]
-                    psar_af = min(psar_af + acceleration_factor_step, acceleration_factor_max)
-
-            psar_direction.iloc[i] = 'uptrend' if uptrend else 'downtrend'
-
-        psar.name = f'PSAR({acceleration_factor_step})'
         return psar
 
-    def accumulation_distribution_line(
-            self,
-            window_size: int = 20,
-    ) -> pd.DataFrame:
-        data = self._resample_ohlcv_data()
-
-        mfm = ((data['Close'] - data['Low']) - (data['High'] - data['Close'])) / (data['High'] - data['Low'])
-        mfv = mfm * data['Volume']
-        adl = mfv.cumsum()
-
-        res = adl.rolling(window_size).sum()
-        res.name = f'ADL({window_size})'
-
-        return res
-
-    def average_daily_range(self, window_size: int = 20) -> pd.DataFrame:
-        data = self._resample_ohlcv_data()
-        daily_range = data['High'] - data['Low']
-
-        adr = daily_range.rolling(window_size).mean()
-        adr.name = f'ADR({window_size})'
-
-        return adr
-
-    def average_true_range(
-            self,
-            window_size: int = 20
-    ) -> pd.Series:
-        data = self._resample_ohlcv_data()
-
-        data['High-Low'] = data['High'] - data['Low']  # a) Calculate [Current High price - Current Low Price]
-        data['High-Close'] = np.abs(data['High'] - data[
-            'Close'].shift())  # b) Calculate [High Price of Current Day - Adjusted Closing Price of Previous Day]
-        data['Low-Close'] = np.abs(data['Low'] - data[
-            'Close'].shift())  # c) Calculate [Low Price of Current Day - Adjusted Closing Price of Previous Day]
-        data['True_Range'] = data[['High-Low', 'High-Close', 'Low-Close']].max(
-            axis=1)  # Calculate True Range (TR) = max[a, b, c]
-
-        atr = data['True_Range'].rolling(window_size).mean()  # Calculate ATR as the mean of the True Range
-        atr.name = f'ATR({window_size})'
-        return atr
-
-    def average_directional_movement_index(
-            self,
-            window_size: int = 20
-    ) -> pd.Series:
-        data = self._resample_ohlcv_data()
-        atr = self.average_true_range(window_size)
-
-        dm_plus = np.where((data['High'] - data['High'].shift(1)) > (data['Low'].shift(1) - data['Low']),
-                           np.maximum(data['High'] - data['High'].shift(1), 0), 0)
-        dm_minus = np.where((data['Low'].shift(1) - data['Low']) > (data['High'] - data['High'].shift(1)),
-                            np.maximum(data['Low'].shift(1) - data['Low'], 0), 0)
-
-        dm_plus = pd.Series(dm_plus, index=data.index)
-        dm_minus = pd.Series(dm_minus, index=data.index)
-
-        di_plus = 100 * (dm_plus.rolling(window_size).mean() / atr)
-        di_minus = 100 * (dm_minus.rolling(window_size).mean() / atr)
-
-        dx = 100 * (np.abs(di_plus - di_minus) / (di_plus + di_minus))
-
-        # Calculate the ADX as the moving average of DX
-        adx = dx.rolling(window_size).mean()
-        adx.name = f'ADX({window_size})'
-
-        return adx
-
-    def aroon_indicator(
-            self, window_size: int = 20
-    ) -> pd.DataFrame:
-        data = self._resample_ohlcv_data()
-        aroon_up = 100 * (window_size - data['High'].rolling(window=window_size).apply(lambda x: x[::-1].argmax())) / window_size
-        # Calculate Aroon Down using the lowest low over the specified window
-        aroon_down = 100 * (window_size - data['Low'].rolling(window=window_size).apply(lambda x: x[::-1].argmin())) / window_size
-        # Calculate Aroon Oscillator as the difference between Aroon Up and Aroon Down
-        aroon_oscillator = aroon_up - aroon_down
-
-        res = pd.concat([aroon_up, aroon_down, aroon_oscillator], axis=1)
-        res.columns = [f'Aroon({window_size}) up', f'Aroon({window_size}) down', f'Aroon({window_size}) Oscillator']
-
-        return res
-
-    def ichimoku_indicator(
-            self,
-            kijun_window: int = 26,
-            senkouB_window: int = 52,
-            tenkan_window: int = 9
-    ) -> pd.DataFrame:
-
-        data = self._resample_ohlcv_data()
-
-        data[f'Tenkan({tenkan_window})'] = (data['High'].rolling(window=tenkan_window).max() + data['Low'].rolling(
-            window=tenkan_window).min()) / 2  # Calculate Tenkan Sen (Conversion Line)
-        data[f'Kijun({kijun_window})'] = (data['High'].rolling(window=kijun_window).max() + data['Low'].rolling(
-            window=kijun_window).min()) / 2  # Calculate Kijun Sen (Base Line)
-        data[f'Senkou({kijun_window})_A'] = (
-                    (data[f'Tenkan({tenkan_window})'] + data[f'Kijun({kijun_window})']) / 2).shift(
-            kijun_window)  # Calculate Senkou Span A (Leading Span A)
-
-        # Calculate Senkou Span B (Leading Span B)
-        data[f'Senkou({senkouB_window})_B'] = ((data['High'].rolling(window=senkouB_window).max() + data['Low'].rolling(
-            window=senkouB_window).min()) / 2).shift(kijun_window)
-        data[f'Chikou({kijun_window})'] = data['Close'].shift(-kijun_window)  # Calculate Chikou Span (Lagging Span)
-
-        res = data[[f'Tenkan({tenkan_window})', f'Kijun({kijun_window})', f'Senkou({kijun_window})_A',
-                    f'Senkou({senkouB_window})_B', f'Chikou({kijun_window})']].copy('deep')
-
-        return res
-
-    def keltner_channel(
-            self, channel_window: int = 20,
-            atr_window: int = 20,
-            band_sigma: float = 2
-    ) -> pd.DataFrame:
-        data = self._resample_ohlcv_data()
-        atr = self.average_true_range(atr_window)
-
-        data[f'Keltner({channel_window})_mid'] = data['Close'].ewm(span=channel_window,
-                                                                   adjust=False).mean()  # Calculate the middle band using the exponential moving average
-        data[f'ATR({atr_window})'] = atr
-        data[f'Keltner({channel_window})_upper'] = data[f'Keltner({channel_window})_mid'] + (
-                    data[f'ATR({atr_window})'] * band_sigma)  # Calculate the upper band
-        data[f'Keltner({channel_window})_lower'] = data[f'Keltner({channel_window})_mid'] - (
-                    data[f'ATR({atr_window})'] * band_sigma)  # Calculate the lower band
-
-        res = data[[f'Keltner({channel_window})_mid', f'Keltner({channel_window})_upper',
-                    f'Keltner({channel_window})_lower']].copy('deep')
-        return res
-    
-    def calculate_all_indicators(self) -> pd.DataFrame:
-        """모든 기술적 지표 계산
+    def _calculate_adx(self, period: int) -> None:
+        """Average Directional Index를 계산합니다.
         
-        Returns:
-            pd.DataFrame: 계산된 모든 기술적 지표
+        수식:
+        - True Range = max(고가-저가, |고가-이전종가|, |저가-이전종가|)
+        - +DM = max(고가-이전고가, 0)
+        - -DM = max(이전저가-저가, 0)
+        - +DI = 100 * EMA(+DM, 14) / EMA(TR, 14)
+        - -DI = 100 * EMA(-DM, 14) / EMA(TR, 14)
+        - DX = 100 * |+DI - -DI| / (+DI + -DI)
+        - ADX = EMA(DX, 14)
         """
-        res = pd.DataFrame()
-        
-        # SMA (Series)
-        sma = self.simple_moving_average()
-        res[sma.name] = sma
-        
-        # EMA (Series)
-        ema = self.exponential_moving_average()
-        res[ema.name] = ema
-        
-        # TSI (Series)
-        tsi = self.true_strength_index()
-        res[tsi.name] = tsi
-        
-        # MACD (DataFrame)
-        macd_df = self.moving_average_convergence_divergence()
-        for col in macd_df.columns:
-            res[col] = macd_df[col]
-        
-        # PSAR (Series)
-        psar = self.parabolic_stop_and_reverse()
-        res[psar.name] = psar
-        
-        # ADL (Series)
-        adl = self.accumulation_distribution_line()
-        res[adl.name] = adl
-        
-        # ADR (Series)
-        adr = self.average_daily_range()
-        res[adr.name] = adr
-        
-        # ATR (Series)
-        atr = self.average_true_range()
-        res[atr.name] = atr
-        
-        # ADX (Series)
-        adx = self.average_directional_movement_index()
-        res[adx.name] = adx
-        
-        # Aroon (DataFrame)
-        aroon_df = self.aroon_indicator()
-        for col in aroon_df.columns:
-            res[col] = aroon_df[col]
-        
-        # Ichimoku (DataFrame)
-        ichimoku_df = self.ichimoku_indicator()
-        for col in ichimoku_df.columns:
-            res[col] = ichimoku_df[col]
-        
-        # Keltner Channel (DataFrame)
-        keltner_df = self.keltner_channel()
-        for col in keltner_df.columns:
-            res[col] = keltner_df[col]
-            
-        return res
+        high = self.df["High"]
+        low = self.df["Low"]
+        close = self.df["Close"]
 
+        # True Range
+        tr1 = high - low
+        tr2 = abs(high - close.shift(1))
+        tr3 = abs(low - close.shift(1))
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        atr = tr.rolling(window=period).mean()
 
-class CORE16ContrarianIndicator(object):
-    def __init__(
-            self, ohlcv_data: pd.DataFrame,
-            resample: str = 'W-FRI'
-    ) -> None:
-        self.ohlcv_data = ohlcv_data
-        self.resample = resample
+        # Plus/Minus Directional Movement
+        up_move = high - high.shift(1)
+        down_move = low.shift(1) - low
 
-    def _resample_ohlcv_data(self):
-        if self.resample != '1d':
-            open_data = self.ohlcv_data['Open'].resample(self.resample).first()
-            high_data = self.ohlcv_data['High'].resample(self.resample).max()
-            low_data = self.ohlcv_data['Low'].resample(self.resample).min()
-            close_data = self.ohlcv_data['Close'].resample(self.resample).last()
-            if 'Adj Close' in self.ohlcv_data.columns:
-                adjusted_close_data = self.ohlcv_data['Adj Close'].resample(self.resample).last()
-            volume_data = self.ohlcv_data['Volume'].resample(self.resample).sum()
+        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
+        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
 
-            # Combine the resampled volume data with the rest of the OHLCV data
-            if 'Adj Close' in self.ohlcv_data.columns:
-                data = pd.concat([open_data, high_data, low_data, close_data, adjusted_close_data, volume_data], axis=1)
-                data.columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
-            else:
-                data = pd.concat([open_data, high_data, low_data, close_data, volume_data], axis=1)
-                data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+        plus_di = 100 * pd.Series(plus_dm, index=close.index).rolling(window=period).mean() / atr
+        minus_di = 100 * pd.Series(minus_dm, index=close.index).rolling(window=period).mean() / atr
 
-            data.ffill(inplace=True)
+        # ADX
+        dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+        adx = dx.rolling(window=period).mean()
 
-            return data
-        else :
-            return self.ohlcv_data
+        self.indicators_df[f"ADX({period})"] = adx
+        self.indicators_df[f"ADX_Plus_DI({period})"] = plus_di
+        self.indicators_df[f"ADX_Minus_DI({period})"] = minus_di
 
-    def relative_strength_index(
-            self, window_size: int = 14,
-            column_name: str = 'Close',
-            method: str = 'simple'
-    ) -> pd.Series:
-        data = self._resample_ohlcv_data()
+    def _calculate_aroon(self, period: int) -> None:
+        """Aroon 지표를 계산합니다.
+        
+        수식:
+        - Aroon Up = 100 * (기간 - 최근 고가까지의 기간) / 기간
+        - Aroon Down = 100 * (기간 - 최근 저가까지의 기간) / 기간
+        """
+        high = self.df["High"]
+        low = self.df["Low"]
 
-        delta = data[column_name].diff()
-        gain = delta.where(delta > 0, 0)
-        loss = -delta.where(delta < 0, 0)
+        # Aroon Up
+        rolling_max = high.rolling(window=period).max()
+        aroon_up = 100 * (period - (high == rolling_max).cumsum()) / period
 
-        if method == 'simple':
-            avg_gain = gain.rolling(window_size).mean()
-            avg_loss = loss.rolling(window_size).mean()
-        elif method == 'exponential':
-            avg_gain = gain.ewm(window_size).mean()
-            avg_loss = loss.ewm(window_size).mean()
-        else:
-            raise NotImplementedError('Method must be either simple or exponential')
+        # Aroon Down
+        rolling_min = low.rolling(window=period).min()
+        aroon_down = 100 * (period - (low == rolling_min).cumsum()) / period
 
-        rs = avg_gain / avg_loss
+        self.indicators_df[f"Aroon_Up({period})"] = aroon_up
+        self.indicators_df[f"Aroon_Down({period})"] = aroon_down
+
+    def _calculate_adl(self, period: int) -> None:
+        """Accumulation/Distribution Line을 계산합니다.
+        
+        수식:
+        - Money Flow Multiplier = ((종가-저가)-(고가-종가)) / (고가-저가)
+        - Money Flow Volume = Money Flow Multiplier * 거래량
+        - ADL = Money Flow Volume의 누적합
+        """
+        high = self.df["High"]
+        low = self.df["Low"]
+        close = self.df["Close"]
+        volume = self.df["Volume"]
+
+        # Money Flow Multiplier
+        mfm = ((close - low) - (high - close)) / (high - low)
+        mfm = mfm.replace([np.inf, -np.inf], 0)
+
+        # Money Flow Volume
+        mfv = mfm * volume
+
+        # ADL
+        adl = mfv.cumsum()
+        adl_sma = adl.rolling(window=period).mean()
+
+        self.indicators_df[f"ADL({period})"] = adl
+        self.indicators_df[f"ADL_SMA({period})"] = adl_sma
+
+    def _calculate_adr(self, period: int) -> None:
+        """Advance/Decline Ratio를 계산합니다."""
+        close = self.df["Close"]
+        volume = self.df["Volume"]
+
+        # 가격 변화
+        price_change = close.diff()
+
+        # 상승/하락 거래량
+        up_volume = volume.where(price_change > 0, 0)
+        down_volume = volume.where(price_change < 0, 0)
+
+        # ADR
+        adr = up_volume.rolling(window=period).sum() / down_volume.rolling(window=period).sum()
+        adr_sma = adr.rolling(window=period).mean()
+
+        self.indicators_df[f"ADR({period})"] = adr
+        self.indicators_df[f"ADR_SMA({period})"] = adr_sma
+
+    def _calculate_ichimoku(self, tenkan_period: int, kijun_period: int) -> None:
+        """일목균형표를 계산합니다."""
+        high = self.df["High"]
+        low = self.df["Low"]
+
+        # Tenkan-sen (Conversion Line)
+        period_high = high.rolling(window=tenkan_period).max()
+        period_low = low.rolling(window=tenkan_period).min()
+        tenkan = (period_high + period_low) / 2
+
+        # Kijun-sen (Base Line)
+        period_high = high.rolling(window=kijun_period).max()
+        period_low = low.rolling(window=kijun_period).min()
+        kijun = (period_high + period_low) / 2
+
+        self.indicators_df[f"Ichimoku_Tenkan({tenkan_period})"] = tenkan
+        self.indicators_df[f"Ichimoku_Kijun({kijun_period})"] = kijun
+
+    def _calculate_keltner(self, period: int, multiplier: float) -> None:
+        """Keltner Channel을 계산합니다."""
+        close = self.df["Close"]
+        high = self.df["High"]
+        low = self.df["Low"]
+
+        # EMA
+        ema = close.ewm(span=period, adjust=False).mean()
+
+        # ATR
+        tr1 = high - low
+        tr2 = abs(high - close.shift(1))
+        tr3 = abs(low - close.shift(1))
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        atr = tr.rolling(window=period).mean()
+
+        # Keltner Channel
+        upper = ema + multiplier * atr
+        lower = ema - multiplier * atr
+
+        self.indicators_df[f"Keltner_Upper({period},{multiplier})"] = upper
+        self.indicators_df[f"Keltner_Lower({period},{multiplier})"] = lower
+
+    def _calculate_rsi(self, period: int) -> pd.Series:
+        """Relative Strength Index를 계산합니다.
+        
+        수식:
+        - 가격 변화 = 현재 종가 - 이전 종가
+        - 상승 평균 = EMA(상승 변화, 14)
+        - 하락 평균 = EMA(하락 변화, 14)
+        - RS = 상승 평균 / 하락 평균
+        - RSI = 100 - (100 / (1 + RS))
+        """
+        close = self.df["Close"]
+
+        # 가격 변화
+        delta = close.diff()
+
+        # 상승/하락 평균
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+
+        # RSI
+        rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
-        rsi.name = f'RSI({window_size})'
 
         return rsi
 
-    def bollinger_band(
-            self, window_size: int = 20,
-            band_sigma: int = 2,
-            column_name: str = 'Close',
-            method: str = 'simple'
-    ) -> pd.DataFrame:
-        data = self._resample_ohlcv_data()
+    def _calculate_bb(self, period: int, std_dev: float) -> None:
+        """Bollinger Bands를 계산합니다.
+        
+        수식:
+        - 중간 밴드 = SMA(종가, 20)
+        - 표준편차 = 종가의 20일 표준편차
+        - 상단 밴드 = 중간 밴드 + (2 * 표준편차)
+        - 하단 밴드 = 중간 밴드 - (2 * 표준편차)
+        """
+        close = self.df["Close"]
 
-        if method == 'simple':
-            mavg = data[column_name].rolling(window_size).mean()
-            band_std = data[column_name].rolling(window_size).std()
-        elif method == 'exponential':
-            mavg = data[column_name].ewm(window_size).mean()
-            band_std = data[column_name].ewm(window_size).std()
-        else:
-            raise NotImplementedError('Method must be either simple or exponential')
+        # 중간 밴드 (SMA)
+        middle = close.rolling(window=period).mean()
 
-        up = mavg + (band_sigma * band_std)
-        down = mavg - (band_sigma * band_std)
+        # 표준편차
+        std = close.rolling(window=period).std()
 
-        res = pd.concat([mavg, up, down], axis=1)
-        res.columns = [f'BB_MAVG({window_size})', f'BB_UP({window_size})', f'BB_DOWN({window_size})']
+        # 상단/하단 밴드
+        upper = middle + (std_dev * std)
+        lower = middle - (std_dev * std)
 
-        return res
+        self.indicators_df[f"BB_Upper({period},{std_dev})"] = upper
+        self.indicators_df[f"BB_Lower({period},{std_dev})"] = lower
 
-    def commodity_channel_index(self, window_size: int = 20, scale_const: float = 0.015) -> pd.Series:
-        data = self._resample_ohlcv_data()
+    def _calculate_cci(self, period: int) -> pd.Series:
+        """Commodity Channel Index를 계산합니다.
+        
+        수식:
+        - Typical Price = (고가 + 저가 + 종가) / 3
+        - TP의 이동평균 = SMA(Typical Price, 20)
+        - Mean Absolute Deviation = |TP - TP의 이동평균|의 20일 평균
+        - CCI = (TP - TP의 이동평균) / (0.015 * Mean Absolute Deviation)
+        """
+        high = self.df["High"]
+        low = self.df["Low"]
+        close = self.df["Close"]
 
-        tp = (data['High'] + data['Low'] + data['Close']) / 3
-        short_sma = tp.rolling(window_size).mean()
-        short_mad = tp.rolling(window_size).apply(
-            lambda x: np.fabs(x - x.mean()).mean()
-        )
-        cci = (tp - short_sma) / (scale_const * short_mad)
+        # Typical Price
+        tp = (high + low + close) / 3
 
-        cci.name = f'CCI({window_size})'
+        # SMA of TP
+        tp_sma = tp.rolling(window=period).mean()
+
+        # Mean Absolute Deviation
+        mad = tp.rolling(window=period).apply(lambda x: abs(x - x.mean()).mean())
+
+        # CCI
+        cci = (tp - tp_sma) / (0.015 * mad)
+
         return cci
 
-    def chande_momentum_oscillator(self, window_size: int = 14) -> pd.Series:
-        data = self._resample_ohlcv_data()
+    def _calculate_stoch(self, k_period: int, d_period: int) -> None:
+        """Stochastic Oscillator를 계산합니다.
+        
+        수식:
+        - %K = 100 * (현재 종가 - 최저가) / (최고가 - 최저가)
+        - %D = SMA(%K, 3)
+        """
+        high = self.df["High"]
+        low = self.df["Low"]
+        close = self.df["Close"]
 
-        data['Change'] = data['Close'].diff()
-        data['Gain'] = np.where(data['Change'] > 0, data['Change'], 0)
-        data['Loss'] = np.where(data['Change'] < 0, -data['Change'], 0)
+        # %K
+        lowest_low = low.rolling(window=k_period).min()
+        highest_high = high.rolling(window=k_period).max()
+        k = 100 * (close - lowest_low) / (highest_high - lowest_low)
 
-        data['Sum_Gain'] = data['Gain'].rolling(window_size).sum()
-        data['Sum_Loss'] = data['Loss'].rolling(window_size).sum()
+        # %D
+        d = k.rolling(window=d_period).mean()
 
-        cmo = 100 * (data['Sum_Gain'] - data['Sum_Loss']) / (data['Sum_Gain'] + data['Sum_Loss'])
-        cmo.name = f'CMO({window_size})'
+        self.indicators_df[f"Stoch_K({k_period})"] = k
+        self.indicators_df[f"Stoch_D({k_period},{d_period})"] = d
+
+    def _calculate_williams(self, period: int) -> pd.Series:
+        """Williams %R을 계산합니다.
+        
+        수식:
+        - Williams %R = -100 * (최고가 - 현재 종가) / (최고가 - 최저가)
+        """
+        high = self.df["High"]
+        low = self.df["Low"]
+        close = self.df["Close"]
+
+        # Highest High
+        highest_high = high.rolling(window=period).max()
+
+        # Lowest Low
+        lowest_low = low.rolling(window=period).min()
+
+        # Williams %R
+        williams = -100 * (highest_high - close) / (highest_high - lowest_low)
+
+        return williams
+
+    def _calculate_cmo(self, period: int) -> pd.Series:
+        """Chande Momentum Oscillator를 계산합니다.
+        
+        수식:
+        - 상승 합계 = 상승 변화의 14일 합계
+        - 하락 합계 = 하락 변화의 14일 합계
+        - CMO = 100 * (상승 합계 - 하락 합계) / (상승 합계 + 하락 합계)
+        """
+        close = self.df["Close"]
+
+        # 가격 변화
+        delta = close.diff()
+
+        # 상승/하락 합계
+        up_sum = delta.where(delta > 0, 0).rolling(window=period).sum()
+        down_sum = -delta.where(delta < 0, 0).rolling(window=period).sum()
+
+        # CMO
+        cmo = 100 * (up_sum - down_sum) / (up_sum + down_sum)
 
         return cmo
 
-    def demarker_indicator(self, window_size: int = 14) -> pd.Series:
-        data = self._resample_ohlcv_data()
+    def _calculate_demarker(self, period: int) -> pd.Series:
+        """DeMarker를 계산합니다.
+        
+        수식:
+        - DeMax = max(고가 - 이전고가, 0)
+        - DeMin = max(이전저가 - 저가, 0)
+        - DeMarker = DeMax의 14일 합계 / (DeMax의 14일 합계 + DeMin의 14일 합계)
+        """
+        high = self.df["High"]
+        low = self.df["Low"]
 
-        data['DeMax'] = np.where(data['High'] > data['High'].shift(1), data['High'] - data['High'].shift(1), 0)
-        data['DeMin'] = np.where(data['Low'] < data['Low'].shift(1), data['Low'].shift(1) - data['Low'], 0)
+        # DeMax
+        demax = high - high.shift(1)
+        demax = demax.where(demax > 0, 0)
 
-        data['DeMax_SMA'] = data['DeMax'].rolling(window_size).mean()
-        data['DeMin_SMA'] = data['DeMin'].rolling(window_size).mean()
+        # DeMin
+        demin = low.shift(1) - low
+        demin = demin.where(demin > 0, 0)
 
-        demark = data['DeMax_SMA'] / (data['DeMax_SMA'] + data['DeMin_SMA'])
+        # DeMarker
+        demarker = demax.rolling(window=period).sum() / (
+            demax.rolling(window=period).sum() + demin.rolling(window=period).sum()
+        )
 
-        demark.name = f'DEMARK({window_size})'
-        return demark
+        return demarker
 
-    def donchian_channel(self, window_size: int = 20) -> pd.DataFrame:
-        data = self._resample_ohlcv_data()
+    def _calculate_donchian(self, period: int) -> None:
+        """Donchian Channel을 계산합니다."""
+        high = self.df["High"]
+        low = self.df["Low"]
 
-        data['Upper_Band'] = data['High'].rolling(window_size).max()
-        data['Lower_Band'] = data['Low'].rolling(window_size).min()
-        data['Mid_Band'] = (data['Upper_Band'] + data['Lower_Band']) / 2
+        # Upper/Lower Bands
+        upper = high.rolling(window=period).max()
+        lower = low.rolling(window=period).min()
 
-        res = data[['Mid_Band', 'Upper_Band', 'Lower_Band']].copy('deep')
-        res.columns = [f'Donchian({window_size}) mid', f'Donchian({window_size}) up', f'Donchian({window_size}) down']
+        self.indicators_df[f"Donchian_Upper({period})"] = upper
+        self.indicators_df[f"Donchian_Lower({period})"] = lower
 
-        return res
+    def _calculate_pivot(self, method: str) -> None:
+        """Pivot Points를 계산합니다."""
+        high = self.df["High"]
+        low = self.df["Low"]
+        close = self.df["Close"]
 
-    def pivot(self, scale_const: float = 2.0) -> pd.DataFrame:
-        data = self._resample_ohlcv_data()
+        # Pivot Point
+        pivot = (high + low + close) / 3
 
-        data['Pivot_Point'] = (data['High'].shift(1) + data['Low'].shift(1) + data['Close'].shift(1)) / 3
-        data['Support_1'] = (scale_const * data['Pivot_Point']) - data['High'].shift(1)
-        data['Resistance_1'] = (scale_const * data['Pivot_Point']) - data['Low'].shift(1)
+        # Support/Resistance Levels
+        r1 = 2 * pivot - low
+        s1 = 2 * pivot - high
 
-        res = data[['Pivot_Point', 'Support_1', 'Resistance_1']]
-        res.columns = ['Pivot', 'Support', 'Resistance']
+        self.indicators_df[f"Pivot_R1({method})"] = r1
+        self.indicators_df[f"Pivot_S1({method})"] = s1
 
-        return res
+    def _calculate_psy(self, period: int) -> pd.Series:
+        """Psychological Line을 계산합니다.
+        
+        수식:
+        - 상승일 비율 = (상승일 수 / 기간) * 100
+        """
+        close = self.df["Close"]
 
-    def stochastic_oscillator(self, k_window_size: int = 14, d_window_size: int = 3) -> pd.DataFrame:
-        data = self._resample_ohlcv_data()
+        # 가격 변화
+        price_change = close.diff()
 
-        low = data['Low'].rolling(k_window_size).min()
-        high = data['High'].rolling(k_window_size).max()
-        k_per = 100 * ((data['Close'] - low) / (high - low))
-        d_per = k_per.rolling(d_window_size).mean()
+        # 상승일 비율
+        psy = 100 * (price_change > 0).rolling(window=period).mean()
 
-        res = pd.concat([low, high, k_per, d_per], axis=1)
-        res.columns = [f'stochastic_oscillator Low({k_window_size})', f'stochastic_oscillator High({k_window_size})', f'stochastic_oscillator %K({k_window_size})',
-                       f'stochastic_oscillator %D({d_window_size})']
-
-        return res
-
-    def williams_oscillator(self, window_size: int = 14) -> pd.Series:
-        data = self._resample_ohlcv_data()
-
-        data['Highest_High'] = data['High'].rolling(window_size).max()
-        data['Lowest_Low'] = data['Low'].rolling(window_size).min()
-
-        res = (data['Highest_High'] - data['Close']) / (data['Highest_High'] - data['Lowest_Low']) * -100
-        res.name = f'Williams({window_size})'
-        return res
-
-    def psycological_line(self, window_size: int = 12, column_name: str = 'Close') -> pd.Series:
-        data = self._resample_ohlcv_data()
-
-        data['Up'] = np.where(data[column_name] > data[column_name].shift(1), 1, 0)
-        # Calculate the PSY as the percentage of 'Up' days over the specified window period
-        psy = data['Up'].rolling(window_size).sum() / window_size * 100
-
-        psy.name = f'PSY({window_size})'
         return psy
 
-    def normalized_psycological_line(self, window_size: int = 12, column_name: str = 'Close') -> pd.Series:
-        data = self._resample_ohlcv_data()
-        data['Up'] = np.where(data[column_name] > data[column_name].shift(1), 1,
-                              0)  # Calculate Up values: 1 if current close > previous close, else 0
-        npsy = (data['Up'].rolling(window_size).sum() - (window_size / 2)) / (
-                    window_size / 2) * 100  # Calculate NPSY as a percentage
+    def _calculate_npsy(self, period: int) -> pd.Series:
+        """Negative Psychological Line을 계산합니다.
+        
+        수식:
+        - 하락일 비율 = (하락일 수 / 기간) * 100
+        """
+        close = self.df["Close"]
 
-        npsy.name = f'NPSY({window_size})'
+        # 가격 변화
+        price_change = close.diff()
+
+        # 하락일 비율
+        npsy = 100 * (price_change < 0).rolling(window=period).mean()
+
         return npsy
-    
-    def calculate_all_indicators(self) -> pd.DataFrame:
-        res = pd.DataFrame()
-        
-        # RSI (Series)
-        rsi = self.relative_strength_index()
-        res[rsi.name] = rsi
-        
-        # Bollinger Bands (DataFrame)
-        bb_df = self.bollinger_band()
-        for col in bb_df.columns:
-            res[col] = bb_df[col]
-        
-        # CCI (Series)
-        cci = self.commodity_channel_index()
-        res[cci.name] = cci
-        
-        # CMO (Series)
-        cmo = self.chande_momentum_oscillator()
-        res[cmo.name] = cmo
-        
-        # DeMarker (Series)
-        demark = self.demarker_indicator()
-        res[demark.name] = demark
-        
-        # Donchian Channel (DataFrame)
-        donchian_df = self.donchian_channel()
-        for col in donchian_df.columns:
-            res[col] = donchian_df[col]
-        
-        # Pivot Points (DataFrame)
-        pivot_df = self.pivot()
-        for col in pivot_df.columns:
-            res[col] = pivot_df[col]
-        
-        # Stochastic Oscillator (DataFrame)
-        stochastic_df = self.stochastic_oscillator()
-        for col in stochastic_df.columns:
-            res[col] = stochastic_df[col]
-        
-        # Williams %R (Series)
-        williams = self.williams_oscillator()
-        res[williams.name] = williams
-        
-        # PSY (Series)
-        psy = self.psycological_line()
-        print(psy)
-        res[psy.name] = psy
-        
-        # NPSY (Series)
-        npsy = self.normalized_psycological_line()
-        res[npsy.name] = npsy
-        
-        return res
+
+    def save_indicators(self) -> None:
+        """지표를 파일로 저장합니다."""
+        try:
+            # 디렉토리가 없으면 생성
+            self.output_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # 저장
+            self.indicators_df.to_csv(self.output_file, index=False)
+            logger.info(f"지표 저장 완료: {self.output_file}")
+
+        except Exception as e:
+            logger.error(f"지표 저장 실패: {str(e)}")
+            raise
+
+
+if __name__ == "__main__":
+    # 지표 계산 실행
+    indicator = TechnicalIndicator()
+    indicator.calculate_all()
+    indicator.save_indicators()
