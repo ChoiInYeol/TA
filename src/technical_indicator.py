@@ -1,5 +1,7 @@
 """
 기술적 지표 계산 모듈
+
+이 모듈은 주가 데이터로부터 다양한 기술적 지표를 계산합니다.
 """
 
 import logging
@@ -8,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from config import INDICATORS_FILE, SPY_DATA_FILE, TECHNICAL_INDICATORS
+from .settings import INDICATORS_FILE, SPY_DATA_FILE, TECHNICAL_INDICATORS
 
 logger = logging.getLogger(__name__)
 

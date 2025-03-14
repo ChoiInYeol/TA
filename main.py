@@ -7,9 +7,10 @@
 import logging
 from pathlib import Path
 
-from signal_generator import SignalGenerator
-from technical_indicator import TechnicalIndicator
-from visualizer import TradingVisualizer
+from src.update_spy import update_spy_data
+from src.signal_generator import SignalGenerator
+from src.technical_indicator import TechnicalIndicator
+from src.visualizer import TradingVisualizer
 
 # 로그 디렉토리 생성
 log_dir = Path("logs")
@@ -34,6 +35,15 @@ def main() -> None:
         # 데이터 디렉토리 생성
         data_dir = Path("data")
         data_dir.mkdir(parents=True, exist_ok=True)
+        
+        # spy 데이터 업데이트
+        logger.info("spy 데이터 업데이트 시작")
+        try:
+            update_spy_data()
+            logger.info("spy 데이터 업데이트 완료")
+        except Exception as e:
+            logger.error(f"spy 데이터 업데이트 실패: {str(e)}")
+            raise
 
         # 기술적 지표 생성
         logger.info("기술적 지표 생성 시작")

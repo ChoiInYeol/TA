@@ -1,4 +1,4 @@
-# Technical Indicator Lamp 개발자 가이드
+# 개발자 가이드
 
 ## 목차
 1. [개발 환경 설정](#개발-환경-설정)
@@ -8,175 +8,154 @@
 5. [기여 가이드](#기여-가이드)
 6. [배포](#배포)
 
+## 프로젝트 구조
+
+```
+src/
+├── config/                 # 설정 모듈
+│   ├── __init__.py
+│   ├── settings.py        # 기본 설정
+│   ├── development.py     # 개발 환경 설정
+│   └── production.py      # 운영 환경 설정
+├── data/                  # 데이터 모듈
+│   ├── raw/              # 원본 데이터
+│   └── processed/        # 처리된 데이터
+├── indicators/           # 기술적 지표 모듈
+│   ├── __init__.py
+│   └── technical_indicator.py
+├── signals/             # 매매 시그널 모듈
+│   ├── __init__.py
+│   └── signal_generator.py
+├── visualization/       # 시각화 모듈
+│   ├── __init__.py
+│   └── visualizer.py
+└── main.py             # 메인 실행 모듈
+```
+
 ## 개발 환경 설정
 
-### 필수 요구사항
-- Python 3.11 이상
-- Git
-- 가상 환경 관리자 (venv, conda 등)
-
-### 개발 환경 구성
+1. Poetry 설치:
 ```bash
-# 1. 저장소 클론 및 브랜치 생성
-git clone https://github.com/ChoiInYeol/technical-indicator-lamp.git
-cd technical-indicator-lamp
-git checkout -b feature/your-feature-name
-
-# 2. 가상환경 생성 및 활성화
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 3. 개발 의존성 설치
-pip install -r requirements.txt
-
-# 4. pre-commit 설정
-pre-commit install
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-## 프로젝트 구조
+2. 프로젝트 의존성 설치:
+```bash
+poetry install
 ```
-technical-indicator-lamp/
-├── .github/
-│   └── workflows/          # GitHub Actions 워크플로우
-├── data/
-│   ├── raw/               # 원본 데이터
-│   └── processed/         # 처리된 데이터
-├── docs/                  # 문서
-├── output/
-│   └── figures/          # 생성된 시각화
-├── src/                  # 소스 코드
-│   ├── technical_indicator.py
-│   ├── signal_generator.py
-│   └── visualizer.py
-├── tests/                # 테스트 코드
-├── .gitignore
-├── LICENSE
-├── README.md
-├── requirements.txt
-└── setup.cfg            # 개발 도구 설정
+
+3. 개발 환경 활성화:
+```bash
+poetry shell
 ```
 
 ## 코드 스타일
 
-### Python 코딩 표준
-- [PEP 8](https://www.python.org/dev/peps/pep-0008/) 준수
-- [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) 참고
-
-### 코드 포맷팅
-```bash
-# Black으로 코드 포맷팅
-black src tests
-
-# isort로 import 정렬
-isort src tests
-```
-
-### 린팅
-```bash
-# Flake8로 코드 검사
-flake8 src tests
-
-# mypy로 타입 검사
-mypy src tests
-```
-
-### 문서화
-- 모든 모듈, 클래스, 함수에 독스트링 작성
-- Type hints 사용
-- 복잡한 로직에 인라인 주석 추가
-
-예시:
-```python
-def calculate_indicator(data: pd.DataFrame, window: int = 20) -> pd.DataFrame:
-    """기술적 지표 계산
-
-    Args:
-        data (pd.DataFrame): OHLCV 데이터
-        window (int, optional): 계산 기간. 기본값 20
-
-    Returns:
-        pd.DataFrame: 계산된 지표 값
-
-    Raises:
-        ValueError: 입력 데이터가 비어있는 경우
-    """
-```
+- PEP 8 준수
+- 타입 힌트 사용
+- 문서화 주석 필수
+- 한글 주석 사용
 
 ## 테스트
 
-### 테스트 실행
+### 단위 테스트 실행
 ```bash
-# 전체 테스트 실행
-pytest
-
-# 커버리지 리포트 생성
-pytest --cov=src --cov-report=html
+pytest tests/
 ```
 
-### 테스트 작성 가이드
-1. **테스트 구조**
-   - `tests/conftest.py`: 공통 fixture 정의
-   - `tests/test_*.py`: 모듈별 테스트
-
-2. **테스트 케이스 작성**
-   ```python
-   def test_indicator_calculation(sample_data):
-       """지표 계산 테스트"""
-       # Given
-       indicator = TechnicalIndicator(sample_data)
-       
-       # When
-       result = indicator.calculate()
-       
-       # Then
-       assert not result.empty
-       assert all(result.columns == expected_columns)
-   ```
-
-3. **테스트 커버리지**
-   - 코드 커버리지 80% 이상 유지
-   - 주요 기능 및 엣지 케이스 테스트
-
-## 기여 가이드
-
-### 기여 절차
-1. Issue 생성 또는 기존 Issue 선택
-2. Fork 및 브랜치 생성
-3. 코드 작성 및 테스트
-4. Pull Request 생성
-
-### Pull Request 체크리스트
-- [ ] 코드 스타일 준수
-- [ ] 테스트 추가/수정
-- [ ] 문서 업데이트
-- [ ] 변경사항 설명
-
-### 커밋 메시지 규칙
+### 테스트 커버리지 확인
+```bash
+pytest --cov=src tests/
 ```
-feat: 새로운 기능 추가
-fix: 버그 수정
-docs: 문서 수정
-style: 코드 포맷팅
-refactor: 코드 리팩토링
-test: 테스트 코드
-chore: 기타 변경사항
+
+## 새로운 기능 추가
+
+### 1. 기술적 지표 추가
+
+1. `src/indicators/technical_indicator.py`에 새로운 지표 계산 메서드 추가
+2. `src/config/settings.py`에 지표 설정 추가
+3. `src/signals/signal_generator.py`에 시그널 생성 로직 추가
+
+### 2. 매매 시그널 추가
+
+1. `src/signals/signal_generator.py`에 새로운 시그널 생성 메서드 추가
+2. 시그널 로직 문서화
+
+### 3. 시각화 추가
+
+1. `src/visualization/visualizer.py`에 새로운 시각화 메서드 추가
+2. `src/config/settings.py`에 시각화 설정 추가
+
+## 로깅
+
+### 로그 레벨
+
+- DEBUG: 개발 환경
+- INFO: 운영 환경
+
+### 로그 포맷
+
 ```
+%(asctime)s - %(name)s - %(levelname)s - %(message)s
+```
+
+## 성능 최적화
+
+### 데이터 처리
+
+- pandas 벡터화 연산 사용
+- 불필요한 복사 최소화
+- 메모리 사용량 최적화
+
+### 시각화
+
+- matplotlib 스타일 최적화
+- 데이터 캐싱
+- 렌더링 성능 개선
 
 ## 배포
 
-### 버전 관리
-- [Semantic Versioning](https://semver.org/) 사용
-- `MAJOR.MINOR.PATCH` 형식
+### 1. 버전 관리
 
-### 릴리스 절차
-1. 버전 업데이트
-2. CHANGELOG.md 업데이트
-3. 릴리스 노트 작성
-4. 태그 생성 및 푸시
+- 시맨틱 버저닝 준수
+- CHANGELOG.md 업데이트
+- 태그 생성
 
-### 자동화된 배포
-GitHub Actions를 통해 다음 작업이 자동화됩니다:
-1. 코드 품질 검사
-2. 테스트 실행
-3. 문서 생성
-4. 패키지 배포 (해당하는 경우) 
+### 2. 패키지 빌드
+
+```bash
+poetry build
+```
+
+### 3. 배포
+
+```bash
+poetry publish
+```
+
+## 문제 해결
+
+### 디버깅
+
+1. 로그 확인
+2. 디버거 사용
+3. 단위 테스트 실행
+
+### 성능 프로파일링
+
+```bash
+python -m cProfile -o profile.stats run.py
+snakeviz profile.stats
+```
+
+## 기여하기
+
+1. 이슈 생성
+2. 브랜치 생성
+3. 코드 작성
+4. 테스트 작성
+5. PR 생성
+
+## 라이선스
+
+이 프로젝트는 MIT 라이선스를 따릅니다. 

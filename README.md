@@ -21,8 +21,8 @@ Technical Indicator Lamp는 다양한 기술적 지표를 활용하여 트레이
 ```
 .
 ├─data
-│  ├─processed        # 처리된 데이터 파일 (지표, 시그널, 히트맵)
-│  └─raw              # 원본 OHLCV 데이터 파일
+│  └─processed        # 처리된 데이터 파일 (지표, 시그널, 히트맵)
+│
 ├─src                 # 소스 코드
 │  ├─config.py        # 설정 파일
 │  ├─main.py          # 메인 실행 파일

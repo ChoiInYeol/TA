@@ -1,32 +1,39 @@
 """
-프로젝트 설정 모듈
+기본 설정 모듈
+
+이 모듈은 프로젝트의 기본 설정을 정의합니다.
 """
 
 import logging
 from pathlib import Path
+from typing import Dict, Any
 
 # 프로젝트 루트 디렉토리
 PROJECT_ROOT = Path(__file__).parent.parent
 
-# 데이터 디렉토리
+# 디렉토리 설정
 DATA_DIR = PROJECT_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"
-PROCESSED_DATA_DIR = DATA_DIR / "processed"
+PROCESSED_DATA_DIR = PROJECT_ROOT / "output"
+LOG_DIR = PROJECT_ROOT / "logs"
 
-# 데이터 파일
-SPY_DATA_FILE = RAW_DATA_DIR / "spy.csv"
+# 디렉토리 생성
+for directory in [DATA_DIR, PROCESSED_DATA_DIR, LOG_DIR]:
+    directory.mkdir(parents=True, exist_ok=True)
+
+# 파일 경로 설정
+LOG_FILE = LOG_DIR / "technical_analysis.log"
+SPY_DATA_FILE = DATA_DIR / "spy_data.csv"
 INDICATORS_FILE = PROCESSED_DATA_DIR / "indicators.csv"
 SIGNALS_FILE = PROCESSED_DATA_DIR / "signals.csv"
-
-# 시각화 파일
-HEATMAP_FILE = PROCESSED_DATA_DIR / "heatmap.png"
+HEATMAP_FILE = PROCESSED_DATA_DIR / "signal_heatmap.png"
+DASHBOARD_FILE = PROCESSED_DATA_DIR / "dashboard.html"
 
 # 로깅 설정
 LOGGING_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 LOGGING_LEVEL = logging.INFO
 
 # 기술적 지표 설정
-TECHNICAL_INDICATORS = {
+TECHNICAL_INDICATORS: Dict[str, Any] = {
     "모멘텀 지표": {
         "SMA": {
             "periods": [20, 50],  # 단순 이동평균 기간
@@ -144,26 +151,33 @@ SIGNAL_THRESHOLDS = {
     },
 }
 
+# 시그널 가중치 설정
+SIGNAL_WEIGHTS = {
+    "RSI": 0.2,
+    "MACD": 0.2,
+    "BB": 0.15,
+    "Stoch": 0.15,
+    "CCI": 0.1,
+    "Williams": 0.1,
+    "CMO": 0.1,
+}
+
 # 시각화 설정
 VISUALIZATION_SETTINGS = {
-    "figsize": (15, 10),
+    "figure_size": (15, 10),
     "style": "seaborn",
-    "last_n_trading_days": 20,
+    "color_scheme": {
+        "buy": "green",
+        "sell": "red",
+        "neutral": "gray",
+    },
+    "heatmap_cmap": "RdYlGn",
     "candlestick_colors": {
-        "up": "red",
-        "down": "blue",
+        "up": "#4dff4d",
+        "down": "#ff4d4d",
     },
     "volume_colors": {
         "up": "lightcoral",
         "down": "lightblue",
     },
-    "heatmap_colors": {
-        "buy": "green",
-        "sell": "red",
-        "neutral": "gray",
-    },
-}
-
-# 디렉토리 생성
-for directory in [DATA_DIR, RAW_DATA_DIR, PROCESSED_DATA_DIR]:
-    directory.mkdir(parents=True, exist_ok=True)
+} 

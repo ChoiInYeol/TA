@@ -41,6 +41,9 @@ nav:
     - signal_generator: api/signal_generator.md
     - visualizer: api/visualizer.md
   - 개발자 가이드: developer_guide.md
+  - 기여하기:
+    - 기여 가이드라인: CONTRIBUTING.md
+    - 행동 강령: CODE_OF_CONDUCT.md
   - 변경 이력: CHANGELOG.md
 
 markdown_extensions:

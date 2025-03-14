@@ -12,7 +12,7 @@ import pandas as pd
 from matplotlib.colors import ListedColormap
 from mplfinance.original_flavor import candlestick_ohlc
 
-from config import HEATMAP_FILE, SIGNALS_FILE, SPY_DATA_FILE
+from .settings import HEATMAP_FILE, SIGNALS_FILE, SPY_DATA_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -283,10 +283,17 @@ class TradingVisualizer:
             # 디렉토리가 없으면 생성
             self.output_file.parent.mkdir(parents=True, exist_ok=True)
 
-            # 저장
-            self.fig.savefig(self.output_file, bbox_inches="tight", dpi=300)
+            # SVG로 저장
+            svg_file = self.output_file.with_suffix(".svg")
+            self.fig.savefig(svg_file, bbox_inches="tight", dpi=300)
+            logger.info(f"대시보드 SVG 저장 완료: {svg_file}")
+
+            # PNG로 저장
+            png_file = self.output_file.with_suffix(".png")
+            self.fig.savefig(png_file, bbox_inches="tight", dpi=300)
+            logger.info(f"대시보드 PNG 저장 완료: {png_file}")
+
             plt.close(self.fig)
-            logger.info(f"대시보드 저장 완료: {self.output_file}")
 
         except Exception as e:
             logger.error(f"대시보드 저장 실패: {str(e)}")
