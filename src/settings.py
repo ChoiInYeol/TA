@@ -25,7 +25,7 @@ LOG_FILE = LOG_DIR / "technical_analysis.log"
 SPY_DATA_FILE = DATA_DIR / "spy_data.csv"
 INDICATORS_FILE = PROCESSED_DATA_DIR / "indicators.csv"
 SIGNALS_FILE = PROCESSED_DATA_DIR / "signals.csv"
-HEATMAP_FILE = PROCESSED_DATA_DIR / "signal_heatmap.png"
+HEATMAP_FILE = PROCESSED_DATA_DIR / "dashboard.png"
 DASHBOARD_FILE = PROCESSED_DATA_DIR / "dashboard.html"
 
 # 로깅 설정

@@ -28,24 +28,21 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install mkdocs mkdocs-material mkdocstrings[python]
+        pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings[python]
         
     - name: API 문서 생성
       run: |
         mkdir -p docs/api
-        for dir in src/*/; do
-          if [ -d "$dir" ]; then
-            dir_name=$(basename "$dir")
-            for file in "$dir"*.py; do
-              if [ -f "$file" ]; then
-                filename=$(basename "$file" .py)
-                echo "# $filename" > "docs/api/${filename}.md"
-                echo "\`\`\`python" >> "docs/api/${filename}.md"
-                cat "$file" >> "docs/api/${filename}.md"
-                echo "\`\`\`" >> "docs/api/${filename}.md"
-              fi
-            done
-          fi
+        for file in $(find src -name "*.py"); do
+          filename=$(basename "$file" .py)
+          module_path=${file#src/}
+          module_path=${module_path//\//.}  # 폴더를 점(.)으로 변환
+          module_path=${module_path%.py}    # 확장자 제거
+          
+          echo "# $module_path" > "docs/api/${filename}.md"
+          echo "\`\`\`python" >> "docs/api/${filename}.md"
+          cat "$file" >> "docs/api/${filename}.md"
+          echo "\`\`\`" >> "docs/api/${filename}.md"
         done
         
     - name: MkDocs 사이트 생성
@@ -55,4 +52,5 @@ jobs:
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./site 
+        publish_branch: gh-pages
+        publish_dir: ./site
