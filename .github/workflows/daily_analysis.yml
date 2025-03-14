@@ -8,6 +8,8 @@ on:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
     - uses: actions/checkout@v3
@@ -28,15 +30,17 @@ jobs:
         python src/update_spy.py
         python main.py
     
-    - name: Copy dashboard to docs
-      run: |
-        mkdir -p docs/assets
-        cp output/dashboard.png docs/assets/
-        cp output/dashboard.svg docs/assets/
-    
-    - name: Commit and push if changed
+    - name: Commit to main branch
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add data/ output/ docs/
+        git add data/ output/
         git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily analysis results" && git push)
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./output
+        destination_dir: assets
+        keep_files: true
