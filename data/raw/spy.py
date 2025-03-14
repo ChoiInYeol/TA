@@ -4,8 +4,8 @@ S&P 500 데이터 수집 및 관리 모듈
 import logging
 from pathlib import Path
 
-import yfinance as yf
 import pandas as pd
+import yfinance as yf
 
 from config import SPY_DATA_FILE
 
