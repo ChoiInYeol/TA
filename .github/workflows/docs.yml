@@ -54,3 +54,5 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_branch: gh-pages
         publish_dir: ./site
+        force_orphan: true  # gh-pages 브랜치를 새로 생성
+
