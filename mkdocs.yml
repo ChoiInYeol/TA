@@ -26,12 +26,10 @@ theme:
         name: Switch to light mode
 
 plugins:
-  - search
   - mkdocstrings:
-      default_handler: python
       handlers:
         python:
-          rendering:
+          options:
             show_source: true
             show_root_heading: true
 
@@ -59,9 +57,9 @@ markdown_extensions:
   - pymdownx.caret
   - pymdownx.critic
   - pymdownx.details
-  - pymdownx.emoji: 
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.emoji:
+      emoji_index: !!python/name:pymdownx.emoji.twemoji
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.keys

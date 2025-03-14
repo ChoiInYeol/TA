@@ -33,12 +33,12 @@ ENV/
 *.swo
 
 # Project specific
-data/raw/*
-!data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
-output/figures/*
-!output/figures/.gitkeep
+# data/raw/*
+# !data/raw/.gitkeep
+# data/processed/*
+# !data/processed/.gitkeep
+# output/figures/*
+# !output/figures/.gitkeep
 
 # Logs
 *.log
