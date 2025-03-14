@@ -75,11 +75,15 @@ class SignalGenerator:
         """모멘텀 지표 기반 시그널을 생성합니다."""
         # SMA
         for period in TECHNICAL_INDICATORS["모멘텀 지표"]["SMA"]["periods"]:
-            self.signals_df[f"SMA_{period}_Signal"] = self._generate_sma_signal(period)
+            self.signals_df[f"SMA_({period})_Signal"] = self._generate_sma_signal(
+                period
+            )
 
         # EMA
         for period in TECHNICAL_INDICATORS["모멘텀 지표"]["EMA"]["periods"]:
-            self.signals_df[f"EMA_{period}_Signal"] = self._generate_ema_signal(period)
+            self.signals_df[f"EMA_({period})_Signal"] = self._generate_ema_signal(
+                period
+            )
 
         # TSI
         short_period = TECHNICAL_INDICATORS["모멘텀 지표"]["TSI"]["short_period"]
@@ -201,7 +205,7 @@ class SignalGenerator:
         - 중립: 그 외
         """
         close = self.indicators_df["Close"]
-        sma = self.indicators_df[f"SMA_{period}"]
+        sma = self.indicators_df[f"SMA_({period})"]
 
         signal = pd.Series(0, index=close.index)
         signal[close > sma] = 1
@@ -218,7 +222,7 @@ class SignalGenerator:
         - 중립: 그 외
         """
         close = self.indicators_df["Close"]
-        ema = self.indicators_df[f"EMA_{period}"]
+        ema = self.indicators_df[f"EMA_({period})"]
 
         signal = pd.Series(0, index=close.index)
         signal[close > ema] = 1

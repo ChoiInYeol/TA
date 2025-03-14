@@ -73,11 +73,11 @@ class TechnicalIndicator:
         """모멘텀 지표를 계산합니다."""
         # SMA
         for period in TECHNICAL_INDICATORS["모멘텀 지표"]["SMA"]["periods"]:
-            self.indicators_df[f"SMA_{period}"] = self._calculate_sma(period)
+            self.indicators_df[f"SMA_({period})"] = self._calculate_sma(period)
 
         # EMA
         for period in TECHNICAL_INDICATORS["모멘텀 지표"]["EMA"]["periods"]:
-            self.indicators_df[f"EMA_{period}"] = self._calculate_ema(period)
+            self.indicators_df[f"EMA_({period})"] = self._calculate_ema(period)
 
         # TSI
         short_period = TECHNICAL_INDICATORS["모멘텀 지표"]["TSI"]["short_period"]
