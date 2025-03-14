@@ -7,9 +7,9 @@
 import logging
 from pathlib import Path
 
-from src.update_spy import update_spy_data
 from src.signal_generator import SignalGenerator
 from src.technical_indicator import TechnicalIndicator
+from src.update_spy import update_spy_data
 from src.visualizer import TradingVisualizer
 
 # 로그 디렉토리 생성
@@ -35,7 +35,7 @@ def main() -> None:
         # 데이터 디렉토리 생성
         data_dir = Path("data")
         data_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # spy 데이터 업데이트
         logger.info("spy 데이터 업데이트 시작")
         try:

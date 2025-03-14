@@ -6,7 +6,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 # 프로젝트 루트 디렉토리
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -180,4 +180,4 @@ VISUALIZATION_SETTINGS = {
         "up": "lightcoral",
         "down": "lightblue",
     },
-} 
+}

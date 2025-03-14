@@ -1,6 +1,7 @@
 """
 S&P 500 데이터 수집 및 관리 모듈
 """
+
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -42,7 +43,9 @@ def update_spy_data(
             try:
                 existing_data = pd.read_csv(data_file)
                 existing_data["Date"] = pd.to_datetime(existing_data["Date"]).dt.date
-                logger.info(f"기존 데이터 로드 완료: {len(existing_data)}개 데이터 포인트")
+                logger.info(
+                    f"기존 데이터 로드 완료: {len(existing_data)}개 데이터 포인트"
+                )
             except Exception as e:
                 logger.warning(f"기존 데이터 로드 실패: {str(e)}")
 
@@ -50,7 +53,7 @@ def update_spy_data(
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
         start_date_str = start_date.strftime("%Y-%m-%d")
-        
+
         logger.info(f"{symbol} 데이터 다운로드 시작: {start_date_str}부터")
         ticker = yf.Ticker(symbol)
         df = ticker.history(start=start_date_str)
