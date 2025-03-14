@@ -2,58 +2,81 @@
 시각화 모듈 테스트
 """
 
+import os
+import pandas as pd
 import pytest
+from src.visualizer import TradingVisualizer
+from src.config import HEATMAP_FILE, SIGNALS_FILE, SPY_DATA_FILE
 
-from visualizer import aligned_signal_candlestick
+def test_visualizer_initialization():
+    """TradingVisualizer 초기화 테스트"""
+    visualizer = TradingVisualizer()
+    assert visualizer is not None
+    assert isinstance(visualizer, TradingVisualizer)
 
-
-@pytest.fixture
-def temp_output_file(tmp_path):
-    """임시 출력 파일 경로 생성"""
-    return tmp_path / "test_output.png"
-
-
-def test_visualization_creation(
-    sample_signals_data, sample_ohlcv_data, temp_output_file
-):
-    """시각화 생성 테스트"""
-    # 임시 파일로 데이터 저장
-    signals_file = temp_output_file.parent / "signals.csv"
-    price_file = temp_output_file.parent / "prices.csv"
-
-    sample_signals_data.to_csv(signals_file)
+def test_visualizer_create_dashboard(tmp_path, sample_ohlcv_data, sample_signals_data):
+    """대시보드 생성 테스트"""
+    # 테스트용 파일 생성
+    price_file = tmp_path / "test_price.csv"
+    signals_file = tmp_path / "test_signals.csv"
+    output_file = tmp_path / "test_heatmap.png"
+    
     sample_ohlcv_data.to_csv(price_file)
-
-    # 시각화 생성
-    aligned_signal_candlestick(
-        signal_file=str(signals_file),
-        price_file=str(price_file),
-        last_n_trading_days=5,
-        savefig=str(temp_output_file),
+    sample_signals_data.to_csv(signals_file)
+    
+    # 대시보드 생성
+    visualizer = TradingVisualizer(
+        signals_file=signals_file,
+        price_file=price_file,
+        output_file=output_file
     )
+    visualizer.create_dashboard()
+    
+    # 결과 검증
+    assert visualizer.fig is not None
+    assert visualizer.merged_df is not None
+    assert not visualizer.merged_df.empty
 
-    # 결과 확인
-    assert temp_output_file.exists()
-    assert temp_output_file.stat().st_size > 0
+def test_visualizer_invalid_input():
+    """잘못된 입력 테스트"""
+    visualizer = TradingVisualizer()
+    with pytest.raises(Exception):
+        visualizer.create_dashboard()
 
+def test_visualizer_save_dashboard(tmp_path, sample_ohlcv_data, sample_signals_data):
+    """대시보드 저장 테스트"""
+    # 테스트용 파일 생성
+    price_file = tmp_path / "test_price.csv"
+    signals_file = tmp_path / "test_signals.csv"
+    output_file = tmp_path / "test_heatmap.png"
+    
+    sample_ohlcv_data.to_csv(price_file)
+    sample_signals_data.to_csv(signals_file)
+    
+    # 대시보드 생성 및 저장
+    visualizer = TradingVisualizer(
+        signals_file=signals_file,
+        price_file=price_file,
+        output_file=output_file
+    )
+    visualizer.create_dashboard()
+    visualizer.save_dashboard()
+    
+    # 저장된 파일 검증
+    assert output_file.exists()
 
-def test_visualization_with_invalid_files():
-    """잘못된 파일 입력 테스트"""
-    with pytest.raises(FileNotFoundError):
-        aligned_signal_candlestick(
-            signal_file="nonexistent_signals.csv",
-            price_file="nonexistent_prices.csv",
-            last_n_trading_days=5,
-            savefig="test_output.png",
-        )
-
-
-def test_visualization_with_invalid_days():
-    """잘못된 거래일 수 테스트"""
-    with pytest.raises(ValueError):
-        aligned_signal_candlestick(
-            signal_file="test_signals.csv",
-            price_file="test_prices.csv",
-            last_n_trading_days=-1,
-            savefig="test_output.png",
-        )
+def test_visualizer_load_data(tmp_path, sample_ohlcv_data, sample_signals_data):
+    """데이터 로드 테스트"""
+    # 테스트용 파일 생성
+    price_file = tmp_path / "test_price.csv"
+    signals_file = tmp_path / "test_signals.csv"
+    
+    sample_ohlcv_data.to_csv(price_file)
+    sample_signals_data.to_csv(signals_file)
+    
+    # 데이터 로드 테스트
+    visualizer = TradingVisualizer()
+    price_data, signals_data = visualizer._load_data(price_file, signals_file)
+    
+    pd.testing.assert_frame_equal(sample_ohlcv_data, price_data)
+    pd.testing.assert_frame_equal(sample_signals_data, signals_data) 

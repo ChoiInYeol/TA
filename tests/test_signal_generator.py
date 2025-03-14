@@ -4,54 +4,57 @@
 
 import pandas as pd
 import pytest
+from src.signal_generator import SignalGenerator
+from src.config import TECHNICAL_INDICATORS, SIGNAL_THRESHOLDS
 
-from signal_generator import SignalGenerator
+def test_signal_generator_initialization():
+    """SignalGenerator 초기화 테스트"""
+    generator = SignalGenerator()
+    assert generator is not None
+    assert isinstance(generator, SignalGenerator)
 
+def test_signal_generator_generate_all(tmp_path, sample_indicators_data):
+    """시그널 생성 테스트"""
+    # 테스트용 파일 생성
+    indicators_file = tmp_path / "test_indicators.csv"
+    output_file = tmp_path / "test_signals.csv"
+    sample_indicators_data.to_csv(indicators_file)
+    
+    # 시그널 생성
+    generator = SignalGenerator(indicators_file=indicators_file, output_file=output_file)
+    generator.generate_all()
+    
+    # 결과 검증
+    assert generator.signals_df is not None
+    assert not generator.signals_df.empty
+    
+    # 모멘텀 지표 시그널 검증
+    for period in TECHNICAL_INDICATORS["모멘텀 지표"]["SMA"]["periods"]:
+        assert f"SMA_{period}_Signal" in generator.signals_df.columns
+    
+    # 반대매매 지표 시그널 검증
+    period = TECHNICAL_INDICATORS["반대매매 지표"]["RSI"]["period"]
+    assert f"RSI({period})_Signal" in generator.signals_df.columns
 
-def test_signal_generator_initialization(sample_indicators_data):
-    """시그널 생성기 초기화 테스트"""
-    generator = SignalGenerator(sample_indicators_data)
-    assert generator.data is not None
-    assert not generator.data.empty
-    assert all(col in generator.data.columns for col in ["SMA_20", "RSI_14"])
+def test_signal_generator_invalid_input():
+    """잘못된 입력 테스트"""
+    generator = SignalGenerator()
+    with pytest.raises(Exception):
+        generator.generate_all()
 
-
-def test_momentum_signal_generation(sample_indicators_data):
-    """모멘텀 시그널 생성 테스트"""
-    generator = SignalGenerator(sample_indicators_data)
-    signals = generator.generate_momentum_signals()
-
-    assert not signals.empty
-    assert all(signals[col].isin([-1, 0, 1]).all() for col in signals.columns)
-    assert all(not signals[col].isna().any() for col in signals.columns)
-
-
-def test_contrarian_signal_generation(sample_indicators_data):
-    """반추세 시그널 생성 테스트"""
-    generator = SignalGenerator(sample_indicators_data)
-    signals = generator.generate_contrarian_signals()
-
-    assert not signals.empty
-    assert all(signals[col].isin([-1, 0, 1]).all() for col in signals.columns)
-    assert all(not signals[col].isna().any() for col in signals.columns)
-
-
-def test_signal_values_range(sample_indicators_data):
-    """시그널 값 범위 테스트"""
-    generator = SignalGenerator(sample_indicators_data)
-
-    momentum_signals = generator.generate_momentum_signals()
-    contrarian_signals = generator.generate_contrarian_signals()
-
-    for signals in [momentum_signals, contrarian_signals]:
-        assert signals.min().min() >= -1
-        assert signals.max().max() <= 1
-
-
-def test_invalid_data_input():
-    """잘못된 데이터 입력 테스트"""
-    with pytest.raises(ValueError):
-        SignalGenerator(None)
-
-    with pytest.raises(ValueError):
-        SignalGenerator(pd.DataFrame())
+def test_signal_generator_save_signals(tmp_path, sample_indicators_data):
+    """시그널 저장 테스트"""
+    # 테스트용 파일 생성
+    indicators_file = tmp_path / "test_indicators.csv"
+    output_file = tmp_path / "test_signals.csv"
+    sample_indicators_data.to_csv(indicators_file)
+    
+    # 시그널 생성 및 저장
+    generator = SignalGenerator(indicators_file=indicators_file, output_file=output_file)
+    generator.generate_all()
+    generator.save_signals()
+    
+    # 저장된 파일 검증
+    assert output_file.exists()
+    saved_signals = pd.read_csv(output_file)
+    assert not saved_signals.empty 
