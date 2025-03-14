@@ -15,7 +15,8 @@ dependencies = [
     "plotly (>=6.0.0,<7.0.0)",
     "matplotlib (>=3.10.1,<4.0.0)",
     "setuptools (>=76.0.0,<77.0.0)",
-    "seaborn (>=0.13.2,<0.14.0)"
+    "seaborn (>=0.13.2,<0.14.0)",
+    "mplfinance (>=0.12.10b0,<0.13.0)"
 ]
 
 

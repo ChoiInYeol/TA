@@ -377,8 +377,10 @@ class SignalGenerator:
         psy_col = 'PSY(12)'
         signals = pd.Series(0, index=self.data.index)
         
-        signals[self.data[psy_col] < oversold] = 1
-        signals[self.data[psy_col] > overbought] = -1
+        # PSY 값이 있는 경우에만 시그널 생성
+        mask = ~self.data[psy_col].isna()
+        signals.loc[mask & (self.data[psy_col] < oversold)] = 1
+        signals.loc[mask & (self.data[psy_col] > overbought)] = -1
         
         return signals.shift(1)
 
@@ -397,10 +399,12 @@ class SignalGenerator:
         npsy_col = 'NPSY(12)'
         signals = pd.Series(0, index=self.data.index)
         
-        signals[self.data[npsy_col] < -threshold] = 1
-        signals[self.data[npsy_col] > threshold] = -1
+        # NPSY 값이 있는 경우에만 시그널 생성
+        mask = ~self.data[npsy_col].isna()
+        signals.loc[mask & (self.data[npsy_col] < -threshold)] = 1
+        signals.loc[mask & (self.data[npsy_col] > threshold)] = -1
         
-        return signals.shift(1)
+        return signals
 
     def generate_adl_signals(self, window_size: int = 20) -> pd.Series:
         """Accumulation Distribution Line (ADL) 신호 생성
@@ -525,7 +529,7 @@ class SignalGenerator:
         signals['Donchian'] = self.generate_donchian_signals()
         signals['Pivot'] = self.generate_pivot_signals()
         signals['PSY'] = self.generate_psy_signals()
-        # signals['NPSY'] = self.generate_npsy_signals()
+        signals['NPSY'] = self.generate_npsy_signals()
         
         return signals
     

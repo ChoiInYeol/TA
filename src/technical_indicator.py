@@ -573,6 +573,7 @@ class CORE16ContrarianIndicator(object):
         
         # PSY (Series)
         psy = self.psycological_line()
+        print(psy)
         res[psy.name] = psy
         
         # NPSY (Series)
