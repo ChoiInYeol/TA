@@ -12,7 +12,7 @@ import pandas as pd
 from matplotlib.colors import ListedColormap
 from mplfinance.original_flavor import candlestick_ohlc
 
-from config import HEATMAP_FILE, SIGNALS_FILE, SPY_DATA_FILE, TECHNICAL_INDICATORS
+from config import HEATMAP_FILE, SIGNALS_FILE, SPY_DATA_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +165,7 @@ class TradingVisualizer:
 
         # 히트맵 플롯 (빨간색: 매도, 회색: 중립, 초록색: 매수)
         cmap = ListedColormap(["#ff4d4d", "#e6e6e6", "#4dff4d"])
-        im = ax_heat.imshow(
+        ax_heat.imshow(
             heat_data,
             aspect="auto",  # 주가 차트와 맞추기 위해 auto로 설정
             extent=[-0.5, n_dates - 0.5, -0.5, n_signals - 0.5],

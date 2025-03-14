@@ -2,7 +2,7 @@
 시그널 생성 모듈 테스트
 """
 
-import numpy as np
+import pandas as pd
 import pytest
 
 from signal_generator import SignalGenerator

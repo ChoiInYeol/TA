@@ -11,12 +11,10 @@
 import logging
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from config import (
     INDICATORS_FILE,
-    SIGNAL_THRESHOLDS,
     SIGNALS_FILE,
     TECHNICAL_INDICATORS,
 )

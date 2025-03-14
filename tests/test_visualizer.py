@@ -2,9 +2,6 @@
 시각화 모듈 테스트
 """
 
-import os
-from pathlib import Path
-
 import pytest
 
 from visualizer import aligned_signal_candlestick
