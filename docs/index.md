@@ -1,6 +1,25 @@
-# Technical Indicator Lamp
+# Technical Analysis Dashboard
 
-S&P 500 지수의 기술적 분석을 자동화하는 도구입니다.
+S&P 500 ETF(SPY)의 기술적 분석을 자동화하는 도구입니다.
+
+![Trading Signals Analysis Dashboard](assets/dashboard.png)
+
+**위 대시보드는 Github Action에 의해 매일 UTC 21:30 (한국 시간 06:30)에 자동으로 업데이트 됩니다.**
+
+## 대시보드 구성
+
+### 1. 기술적 지표 히트맵
+- 녹색: 매수 신호
+- 빨간색: 매도 신호
+- 회색: 중립 신호
+- 빈 셀: 신호 없음
+
+### 2. 가격 차트
+- 캔들스틱: SPY의 일봉 차트
+- 빨간색/녹색: 하락/상승
+
+### 3. 거래량 차트
+- 빨간색/녹색: 하락/상승 거래량
 
 ## 주요 기능
 
