@@ -7,8 +7,8 @@
 import logging
 from pathlib import Path
 
-from technical_indicator import TechnicalIndicator
 from signal_generator import SignalGenerator
+from technical_indicator import TechnicalIndicator
 from visualizer import TradingVisualizer
 
 # 로그 디렉토리 생성
@@ -48,7 +48,7 @@ def main() -> None:
         generator.generate_all()
         generator.save_signals()
         logger.info("매매 시그널 생성 완료")
-        
+
         # 시각화 생성
         logger.info("시각화 생성 시작")
         visualizer = TradingVisualizer()

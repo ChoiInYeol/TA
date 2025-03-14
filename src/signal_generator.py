@@ -14,7 +14,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from config import INDICATORS_FILE, SIGNALS_FILE, TECHNICAL_INDICATORS, SIGNAL_THRESHOLDS
+from config import (
+    INDICATORS_FILE,
+    SIGNAL_THRESHOLDS,
+    SIGNALS_FILE,
+    TECHNICAL_INDICATORS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,22 +86,24 @@ class SignalGenerator:
         # TSI
         short_period = TECHNICAL_INDICATORS["모멘텀 지표"]["TSI"]["short_period"]
         long_period = TECHNICAL_INDICATORS["모멘텀 지표"]["TSI"]["long_period"]
-        self.signals_df[f"TSI({short_period},{long_period})_Signal"] = self._generate_tsi_signal(short_period, long_period)
+        self.signals_df[f"TSI({short_period},{long_period})_Signal"] = (
+            self._generate_tsi_signal(short_period, long_period)
+        )
 
         # MACD
         short_period = TECHNICAL_INDICATORS["모멘텀 지표"]["MACD"]["short_period"]
         long_period = TECHNICAL_INDICATORS["모멘텀 지표"]["MACD"]["long_period"]
         signal_period = TECHNICAL_INDICATORS["모멘텀 지표"]["MACD"]["signal_period"]
-        self.signals_df[f"MACD({short_period},{long_period},{signal_period})_Signal"] = self._generate_macd_signal(
-            short_period, long_period, signal_period
-        )
+        self.signals_df[
+            f"MACD({short_period},{long_period},{signal_period})_Signal"
+        ] = self._generate_macd_signal(short_period, long_period, signal_period)
 
         # PSAR
         af_start = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_start"]
         af_increment = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_increment"]
         af_max = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_max"]
-        self.signals_df[f"PSAR({af_start},{af_increment},{af_max})_Signal"] = self._generate_psar_signal(
-            af_start, af_increment, af_max
+        self.signals_df[f"PSAR({af_start},{af_increment},{af_max})_Signal"] = (
+            self._generate_psar_signal(af_start, af_increment, af_max)
         )
 
         # ADX
@@ -118,14 +125,16 @@ class SignalGenerator:
         # Ichimoku
         tenkan_period = TECHNICAL_INDICATORS["모멘텀 지표"]["Ichimoku"]["tenkan_period"]
         kijun_period = TECHNICAL_INDICATORS["모멘텀 지표"]["Ichimoku"]["kijun_period"]
-        self.signals_df[f"Ichimoku({tenkan_period},{kijun_period})_Signal"] = self._generate_ichimoku_signal(
-            tenkan_period, kijun_period
+        self.signals_df[f"Ichimoku({tenkan_period},{kijun_period})_Signal"] = (
+            self._generate_ichimoku_signal(tenkan_period, kijun_period)
         )
 
         # Keltner
         period = TECHNICAL_INDICATORS["모멘텀 지표"]["Keltner"]["period"]
         multiplier = TECHNICAL_INDICATORS["모멘텀 지표"]["Keltner"]["multiplier"]
-        self.signals_df[f"Keltner({period},{multiplier})_Signal"] = self._generate_keltner_signal(period, multiplier)
+        self.signals_df[f"Keltner({period},{multiplier})_Signal"] = (
+            self._generate_keltner_signal(period, multiplier)
+        )
 
     def _generate_contrarian_signals(self) -> None:
         """반대매매 지표 기반 시그널을 생성합니다."""
@@ -136,7 +145,9 @@ class SignalGenerator:
         # BB
         period = TECHNICAL_INDICATORS["반대매매 지표"]["BB"]["period"]
         std_dev = TECHNICAL_INDICATORS["반대매매 지표"]["BB"]["std_dev"]
-        self.signals_df[f"BB({period},{std_dev})_Signal"] = self._generate_bb_signal(period, std_dev)
+        self.signals_df[f"BB({period},{std_dev})_Signal"] = self._generate_bb_signal(
+            period, std_dev
+        )
 
         # CCI
         period = TECHNICAL_INDICATORS["반대매매 지표"]["CCI"]["period"]
@@ -145,11 +156,15 @@ class SignalGenerator:
         # Stoch
         k_period = TECHNICAL_INDICATORS["반대매매 지표"]["Stoch"]["k_period"]
         d_period = TECHNICAL_INDICATORS["반대매매 지표"]["Stoch"]["d_period"]
-        self.signals_df[f"Stoch({k_period},{d_period})_Signal"] = self._generate_stoch_signal(k_period, d_period)
+        self.signals_df[f"Stoch({k_period},{d_period})_Signal"] = (
+            self._generate_stoch_signal(k_period, d_period)
+        )
 
         # Williams
         period = TECHNICAL_INDICATORS["반대매매 지표"]["Williams"]["period"]
-        self.signals_df[f"Williams({period})_Signal"] = self._generate_williams_signal(period)
+        self.signals_df[f"Williams({period})_Signal"] = self._generate_williams_signal(
+            period
+        )
 
         # CMO
         period = TECHNICAL_INDICATORS["반대매매 지표"]["CMO"]["period"]
@@ -157,11 +172,15 @@ class SignalGenerator:
 
         # DeMarker
         period = TECHNICAL_INDICATORS["반대매매 지표"]["DeMarker"]["period"]
-        self.signals_df[f"DeMarker({period})_Signal"] = self._generate_demarker_signal(period)
+        self.signals_df[f"DeMarker({period})_Signal"] = self._generate_demarker_signal(
+            period
+        )
 
         # Donchian
         period = TECHNICAL_INDICATORS["반대매매 지표"]["Donchian"]["period"]
-        self.signals_df[f"Donchian({period})_Signal"] = self._generate_donchian_signal(period)
+        self.signals_df[f"Donchian({period})_Signal"] = self._generate_donchian_signal(
+            period
+        )
 
         # Pivot
         method = TECHNICAL_INDICATORS["반대매매 지표"]["Pivot"]["method"]
@@ -177,7 +196,7 @@ class SignalGenerator:
 
     def _generate_sma_signal(self, period: int) -> pd.Series:
         """SMA 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: 현재 종가 > SMA
         - 매도: 현재 종가 < SMA
@@ -194,7 +213,7 @@ class SignalGenerator:
 
     def _generate_ema_signal(self, period: int) -> pd.Series:
         """EMA 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: 현재 종가 > EMA
         - 매도: 현재 종가 < EMA
@@ -211,7 +230,7 @@ class SignalGenerator:
 
     def _generate_tsi_signal(self, short_period: int, long_period: int) -> pd.Series:
         """TSI 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: TSI > TSI Signal
         - 매도: TSI < TSI Signal
@@ -226,16 +245,20 @@ class SignalGenerator:
 
         return signal
 
-    def _generate_macd_signal(self, short_period: int, long_period: int, signal_period: int) -> pd.Series:
+    def _generate_macd_signal(
+        self, short_period: int, long_period: int, signal_period: int
+    ) -> pd.Series:
         """MACD 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: MACD > MACD Signal
         - 매도: MACD < MACD Signal
         - 중립: 그 외
         """
         macd = self.indicators_df[f"MACD({short_period},{long_period})"]
-        macd_signal = self.indicators_df[f"MACD_Signal({short_period},{long_period},{signal_period})"]
+        macd_signal = self.indicators_df[
+            f"MACD_Signal({short_period},{long_period},{signal_period})"
+        ]
 
         signal = pd.Series(0, index=macd.index)
         signal[macd > macd_signal] = 1
@@ -243,9 +266,11 @@ class SignalGenerator:
 
         return signal
 
-    def _generate_psar_signal(self, af_start: float, af_increment: float, af_max: float) -> pd.Series:
+    def _generate_psar_signal(
+        self, af_start: float, af_increment: float, af_max: float
+    ) -> pd.Series:
         """PSAR 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: 현재 종가 > PSAR
         - 매도: 현재 종가 < PSAR
@@ -262,7 +287,7 @@ class SignalGenerator:
 
     def _generate_adx_signal(self, period: int) -> pd.Series:
         """ADX 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: ADX > 25 and +DI > -DI
         - 매도: ADX > 25 and +DI < -DI
@@ -280,7 +305,7 @@ class SignalGenerator:
 
     def _generate_aroon_signal(self, period: int) -> pd.Series:
         """Aroon 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: Aroon Up > Aroon Down
         - 매도: Aroon Up < Aroon Down
@@ -297,7 +322,7 @@ class SignalGenerator:
 
     def _generate_adl_signal(self, period: int) -> pd.Series:
         """ADL 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: ADL > ADL SMA
         - 매도: ADL < ADL SMA
@@ -314,7 +339,7 @@ class SignalGenerator:
 
     def _generate_adr_signal(self, period: int) -> pd.Series:
         """ADR 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: ADR > ADR SMA
         - 매도: ADR < ADR SMA
@@ -329,9 +354,11 @@ class SignalGenerator:
 
         return signal
 
-    def _generate_ichimoku_signal(self, tenkan_period: int, kijun_period: int) -> pd.Series:
+    def _generate_ichimoku_signal(
+        self, tenkan_period: int, kijun_period: int
+    ) -> pd.Series:
         """Ichimoku 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: Tenkan-sen > Kijun-sen
         - 매도: Tenkan-sen < Kijun-sen
@@ -348,7 +375,7 @@ class SignalGenerator:
 
     def _generate_keltner_signal(self, period: int, multiplier: float) -> pd.Series:
         """Keltner Channel 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: 현재 종가 > 상단 밴드
         - 매도: 현재 종가 < 하단 밴드
@@ -366,7 +393,7 @@ class SignalGenerator:
 
     def _generate_rsi_signal(self, period: int) -> pd.Series:
         """RSI 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: RSI < 30
         - 매도: RSI > 70
@@ -382,7 +409,7 @@ class SignalGenerator:
 
     def _generate_bb_signal(self, period: int, std_dev: float) -> pd.Series:
         """Bollinger Bands 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: 현재 종가 < 하단 밴드
         - 매도: 현재 종가 > 상단 밴드
@@ -400,7 +427,7 @@ class SignalGenerator:
 
     def _generate_cci_signal(self, period: int) -> pd.Series:
         """CCI 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: CCI < -100
         - 매도: CCI > 100
@@ -416,7 +443,7 @@ class SignalGenerator:
 
     def _generate_stoch_signal(self, k_period: int, d_period: int) -> pd.Series:
         """Stochastic Oscillator 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: %K < 20 and %D < 20
         - 매도: %K > 80 and %D > 80
@@ -433,7 +460,7 @@ class SignalGenerator:
 
     def _generate_williams_signal(self, period: int) -> pd.Series:
         """Williams %R 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: Williams %R < -80
         - 매도: Williams %R > -20
@@ -449,7 +476,7 @@ class SignalGenerator:
 
     def _generate_cmo_signal(self, period: int) -> pd.Series:
         """CMO 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: CMO < -50
         - 매도: CMO > 50
@@ -465,7 +492,7 @@ class SignalGenerator:
 
     def _generate_demarker_signal(self, period: int) -> pd.Series:
         """DeMarker 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: DeMarker < 0.2
         - 매도: DeMarker > 0.8
@@ -481,7 +508,7 @@ class SignalGenerator:
 
     def _generate_donchian_signal(self, period: int) -> pd.Series:
         """Donchian Channel 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: 현재 종가 > 상단 밴드
         - 매도: 현재 종가 < 하단 밴드
@@ -499,7 +526,7 @@ class SignalGenerator:
 
     def _generate_pivot_signal(self, method: str) -> pd.Series:
         """Pivot Points 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: 현재 종가 < S1
         - 매도: 현재 종가 > R1
@@ -517,7 +544,7 @@ class SignalGenerator:
 
     def _generate_psy_signal(self, period: int) -> pd.Series:
         """Psychological Line 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: PSY < 30
         - 매도: PSY > 70
@@ -533,7 +560,7 @@ class SignalGenerator:
 
     def _generate_npsy_signal(self, period: int) -> pd.Series:
         """Negative Psychological Line 시그널을 생성합니다.
-        
+
         시그널 생성 로직:
         - 매수: NPSY < 30
         - 매도: NPSY > 70

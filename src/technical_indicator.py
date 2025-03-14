@@ -94,7 +94,9 @@ class TechnicalIndicator:
         af_start = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_start"]
         af_increment = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_increment"]
         af_max = TECHNICAL_INDICATORS["모멘텀 지표"]["PSAR"]["af_max"]
-        self.indicators_df[f"PSAR({af_start},{af_increment},{af_max})"] = self._calculate_psar(af_start, af_increment, af_max)
+        self.indicators_df[f"PSAR({af_start},{af_increment},{af_max})"] = (
+            self._calculate_psar(af_start, af_increment, af_max)
+        )
 
         # ADX
         period = TECHNICAL_INDICATORS["모멘텀 지표"]["ADX"]["period"]
@@ -180,7 +182,7 @@ class TechnicalIndicator:
 
     def _calculate_tsi(self, short_period: int, long_period: int) -> None:
         """True Strength Index를 계산합니다.
-        
+
         수식:
         - 가격 변화 = 현재 종가 - 이전 종가
         - 이중 지수 이동평균 = EMA(EMA(가격 변화, 25), 13)
@@ -192,21 +194,26 @@ class TechnicalIndicator:
         abs_price_change = abs(price_change)
 
         # 이중 지수 이동평균
-        tsi = (
-            100
-            * (
-                price_change.ewm(span=long_period, adjust=False).mean().ewm(span=short_period, adjust=False).mean()
-                / abs_price_change.ewm(span=long_period, adjust=False).mean().ewm(span=short_period, adjust=False).mean()
-            )
+        tsi = 100 * (
+            price_change.ewm(span=long_period, adjust=False)
+            .mean()
+            .ewm(span=short_period, adjust=False)
+            .mean()
+            / abs_price_change.ewm(span=long_period, adjust=False)
+            .mean()
+            .ewm(span=short_period, adjust=False)
+            .mean()
         )
         signal = tsi.ewm(span=short_period, adjust=False).mean()
 
         self.indicators_df[f"TSI({short_period},{long_period})"] = tsi
         self.indicators_df[f"TSI_Signal({short_period},{long_period})"] = signal
 
-    def _calculate_macd(self, short_period: int, long_period: int, signal_period: int) -> None:
+    def _calculate_macd(
+        self, short_period: int, long_period: int, signal_period: int
+    ) -> None:
         """MACD를 계산합니다.
-        
+
         수식:
         - MACD 라인 = EMA(12) - EMA(26)
         - 시그널 라인 = EMA(MACD 라인, 9)
@@ -223,10 +230,16 @@ class TechnicalIndicator:
         hist = macd - signal
 
         self.indicators_df[f"MACD({short_period},{long_period})"] = macd
-        self.indicators_df[f"MACD_Signal({short_period},{long_period},{signal_period})"] = signal
-        self.indicators_df[f"MACD_Hist({short_period},{long_period},{signal_period})"] = hist
+        self.indicators_df[
+            f"MACD_Signal({short_period},{long_period},{signal_period})"
+        ] = signal
+        self.indicators_df[
+            f"MACD_Hist({short_period},{long_period},{signal_period})"
+        ] = hist
 
-    def _calculate_psar(self, af_start: float, af_increment: float, af_max: float) -> pd.Series:
+    def _calculate_psar(
+        self, af_start: float, af_increment: float, af_max: float
+    ) -> pd.Series:
         """Parabolic SAR을 계산합니다."""
         high = self.df["High"]
         low = self.df["Low"]
@@ -272,7 +285,7 @@ class TechnicalIndicator:
 
     def _calculate_adx(self, period: int) -> None:
         """Average Directional Index를 계산합니다.
-        
+
         수식:
         - True Range = max(고가-저가, |고가-이전종가|, |저가-이전종가|)
         - +DM = max(고가-이전고가, 0)
@@ -300,8 +313,16 @@ class TechnicalIndicator:
         plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
         minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
 
-        plus_di = 100 * pd.Series(plus_dm, index=close.index).rolling(window=period).mean() / atr
-        minus_di = 100 * pd.Series(minus_dm, index=close.index).rolling(window=period).mean() / atr
+        plus_di = (
+            100
+            * pd.Series(plus_dm, index=close.index).rolling(window=period).mean()
+            / atr
+        )
+        minus_di = (
+            100
+            * pd.Series(minus_dm, index=close.index).rolling(window=period).mean()
+            / atr
+        )
 
         # ADX
         dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
@@ -313,7 +334,7 @@ class TechnicalIndicator:
 
     def _calculate_aroon(self, period: int) -> None:
         """Aroon 지표를 계산합니다.
-        
+
         수식:
         - Aroon Up = 100 * (기간 - 최근 고가까지의 기간) / 기간
         - Aroon Down = 100 * (기간 - 최근 저가까지의 기간) / 기간
@@ -334,7 +355,7 @@ class TechnicalIndicator:
 
     def _calculate_adl(self, period: int) -> None:
         """Accumulation/Distribution Line을 계산합니다.
-        
+
         수식:
         - Money Flow Multiplier = ((종가-저가)-(고가-종가)) / (고가-저가)
         - Money Flow Volume = Money Flow Multiplier * 거래량
@@ -372,7 +393,10 @@ class TechnicalIndicator:
         down_volume = volume.where(price_change < 0, 0)
 
         # ADR
-        adr = up_volume.rolling(window=period).sum() / down_volume.rolling(window=period).sum()
+        adr = (
+            up_volume.rolling(window=period).sum()
+            / down_volume.rolling(window=period).sum()
+        )
         adr_sma = adr.rolling(window=period).mean()
 
         self.indicators_df[f"ADR({period})"] = adr
@@ -421,7 +445,7 @@ class TechnicalIndicator:
 
     def _calculate_rsi(self, period: int) -> pd.Series:
         """Relative Strength Index를 계산합니다.
-        
+
         수식:
         - 가격 변화 = 현재 종가 - 이전 종가
         - 상승 평균 = EMA(상승 변화, 14)
@@ -446,7 +470,7 @@ class TechnicalIndicator:
 
     def _calculate_bb(self, period: int, std_dev: float) -> None:
         """Bollinger Bands를 계산합니다.
-        
+
         수식:
         - 중간 밴드 = SMA(종가, 20)
         - 표준편차 = 종가의 20일 표준편차
@@ -470,7 +494,7 @@ class TechnicalIndicator:
 
     def _calculate_cci(self, period: int) -> pd.Series:
         """Commodity Channel Index를 계산합니다.
-        
+
         수식:
         - Typical Price = (고가 + 저가 + 종가) / 3
         - TP의 이동평균 = SMA(Typical Price, 20)
@@ -497,7 +521,7 @@ class TechnicalIndicator:
 
     def _calculate_stoch(self, k_period: int, d_period: int) -> None:
         """Stochastic Oscillator를 계산합니다.
-        
+
         수식:
         - %K = 100 * (현재 종가 - 최저가) / (최고가 - 최저가)
         - %D = SMA(%K, 3)
@@ -519,7 +543,7 @@ class TechnicalIndicator:
 
     def _calculate_williams(self, period: int) -> pd.Series:
         """Williams %R을 계산합니다.
-        
+
         수식:
         - Williams %R = -100 * (최고가 - 현재 종가) / (최고가 - 최저가)
         """
@@ -540,7 +564,7 @@ class TechnicalIndicator:
 
     def _calculate_cmo(self, period: int) -> pd.Series:
         """Chande Momentum Oscillator를 계산합니다.
-        
+
         수식:
         - 상승 합계 = 상승 변화의 14일 합계
         - 하락 합계 = 하락 변화의 14일 합계
@@ -562,7 +586,7 @@ class TechnicalIndicator:
 
     def _calculate_demarker(self, period: int) -> pd.Series:
         """DeMarker를 계산합니다.
-        
+
         수식:
         - DeMax = max(고가 - 이전고가, 0)
         - DeMin = max(이전저가 - 저가, 0)
@@ -616,7 +640,7 @@ class TechnicalIndicator:
 
     def _calculate_psy(self, period: int) -> pd.Series:
         """Psychological Line을 계산합니다.
-        
+
         수식:
         - 상승일 비율 = (상승일 수 / 기간) * 100
         """
@@ -632,7 +656,7 @@ class TechnicalIndicator:
 
     def _calculate_npsy(self, period: int) -> pd.Series:
         """Negative Psychological Line을 계산합니다.
-        
+
         수식:
         - 하락일 비율 = (하락일 수 / 기간) * 100
         """

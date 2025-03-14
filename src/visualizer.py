@@ -3,8 +3,8 @@
 """
 
 import logging
-from pathlib import Path
 import re
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -137,10 +137,12 @@ class TradingVisualizer:
         signal_display_names = []
 
         for base_name in signal_order:
-            matching_columns = [col for col in signals.columns if base_name in col and "_Signal" in col]
+            matching_columns = [
+                col for col in signals.columns if base_name in col and "_Signal" in col
+            ]
             for col in matching_columns:
                 signal_columns.append(col)
-                params = re.search(r'\((.*?)\)', col)
+                params = re.search(r"\((.*?)\)", col)
                 if params:
                     display_name = f"{base_name}({params.group(1)})"
                 else:
@@ -168,7 +170,7 @@ class TradingVisualizer:
             aspect="auto",  # 주가 차트와 맞추기 위해 auto로 설정
             extent=[-0.5, n_dates - 0.5, -0.5, n_signals - 0.5],
             cmap=cmap,
-            origin="lower"  # 시그널 순서를 아래에서 위로 표시
+            origin="lower",  # 시그널 순서를 아래에서 위로 표시
         )
 
         # 히트맵 설정
